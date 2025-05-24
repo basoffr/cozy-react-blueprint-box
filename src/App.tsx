@@ -11,6 +11,10 @@ import Statistics from "./pages/Statistics";
 import Templates from "./pages/Templates";
 import Leads from "./pages/Leads";
 import LeadsImport from "./pages/LeadsImport";
+import Campaigns from "./pages/Campaigns";
+import NewCampaign from "./pages/NewCampaign";
+import CampaignLeadSelection from "./pages/CampaignLeadSelection";
+import CampaignConfirmation from "./pages/CampaignConfirmation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +28,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/campaigns" element={<Campaigns />} />
+          <Route path="/campaigns/new" element={<NewCampaign />} />
+          <Route path="/campaigns/new/leads" element={<CampaignLeadSelection />} />
+          <Route path="/campaigns/new/confirm" element={<CampaignConfirmation />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/statistics" element={<Statistics />} />
           <Route path="/templates" element={<Templates />} />
