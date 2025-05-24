@@ -1,7 +1,10 @@
 
 import { ArrowRight, BarChart3, Users, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="relative overflow-hidden py-20 lg:py-28">
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 blur-3xl"></div>
@@ -24,8 +27,11 @@ export const Hero = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 flex items-center justify-center group">
-              Start Free Trial
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 flex items-center justify-center group"
+            >
+              View Dashboard
               <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
             <button className="bg-white/10 backdrop-blur-md text-white border border-white/20 px-8 py-4 rounded-lg hover:bg-white/20 transition-all duration-300">
