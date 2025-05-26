@@ -1,30 +1,16 @@
 
-import { Bell, User } from "lucide-react";
+import { Bell } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { StatsCard } from "@/components/StatsCard";
 import { PerformanceChart } from "@/components/PerformanceChart";
-import { ActionButtons } from "@/components/ActionButtons";
-
-// Placeholder data
-const statsData = [
-  {
-    title: "Leads geïmporteerd:",
-    value: "0",
-  },
-  {
-    title: "E-mails verzonden:",
-    value: "0",
-  },
-  {
-    title: "Opens:",
-    value: "0",
-  },
-  {
-    title: "Replies:",
-    value: "0",
-  },
-];
+import { dashboardApi } from "@/services/api";
 
 export function DashboardContent() {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-overview'],
+    queryFn: dashboardApi.getOverview,
+  });
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -47,20 +33,28 @@ export function DashboardContent() {
         </div>
       </header>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statsData.map((stat, index) => (
-          <StatsCard key={index} title={stat.title} value={stat.value} />
-        ))}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <StatsCard 
+          title="Total leads" 
+          value={isLoading ? "..." : (stats?.total_leads?.toString() || "0")} 
+        />
+        <StatsCard 
+          title="E-mails verzonden" 
+          value={isLoading ? "..." : (stats?.emails_sent?.toString() || "0")} 
+        />
+        <StatsCard 
+          title="Opens" 
+          value={isLoading ? "..." : (stats?.opens?.toString() || "0")} 
+        />
+        <StatsCard 
+          title="Replies" 
+          value={isLoading ? "..." : (stats?.replies?.toString() || "0")} 
+        />
       </div>
 
       {/* Performance Chart */}
-      <div className="mb-8">
-        <PerformanceChart />
-      </div>
-
-      {/* Action Buttons */}
-      <ActionButtons />
+      <PerformanceChart />
     </div>
   );
 }

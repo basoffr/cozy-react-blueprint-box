@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { NewCampaignProvider } from "@/contexts/NewCampaignContext";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
@@ -21,28 +22,30 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/index" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/campaigns" element={<Campaigns />} />
-          <Route path="/campaigns/new" element={<NewCampaign />} />
-          <Route path="/campaigns/new/leads" element={<CampaignLeadSelection />} />
-          <Route path="/campaigns/new/confirm" element={<CampaignConfirmation />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/statistics" element={<Statistics />} />
-          <Route path="/templates" element={<Templates />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/leads/import" element={<LeadsImport />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <NewCampaignProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/index" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/campaigns/new" element={<NewCampaign />} />
+            <Route path="/campaigns/new/leads" element={<CampaignLeadSelection />} />
+            <Route path="/campaigns/new/confirm" element={<CampaignConfirmation />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/statistics" element={<Statistics />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/leads" element={<Leads />} />
+            <Route path="/leads/import" element={<LeadsImport />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </NewCampaignProvider>
   </QueryClientProvider>
 );
 

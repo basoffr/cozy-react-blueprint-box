@@ -4,8 +4,44 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNewCampaign } from "@/contexts/NewCampaignContext";
+import { templatesApi } from "@/services/api";
+import { toast } from "@/components/ui/sonner";
 
 export const NewCampaignContent = () => {
+  const navigate = useNavigate();
+  const { setTemplateId, setScheduleAt } = useNewCampaign();
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [selectedSchedule, setSelectedSchedule] = useState("now");
+
+  const { data: templates, isLoading } = useQuery({
+    queryKey: ['templates'],
+    queryFn: templatesApi.getAll,
+  });
+
+  const handlePreview = async (templateId: string) => {
+    try {
+      await templatesApi.preview(templateId);
+      toast.success("Template preview loaded");
+    } catch (error) {
+      // Error handling is done in the API service
+    }
+  };
+
+  const handleNext = () => {
+    if (!selectedTemplate) {
+      toast.error("Please select a template");
+      return;
+    }
+    
+    setTemplateId(selectedTemplate);
+    setScheduleAt(selectedSchedule === "now" ? null : new Date().toISOString());
+    navigate("/campaigns/new/leads");
+  };
+
   return (
     <div className="p-8">
       {/* Header with breadcrumb */}
@@ -52,16 +88,39 @@ export const NewCampaignContent = () => {
               <CardTitle>Bestaande templates</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <input type="radio" name="template" className="w-4 h-4 text-blue-600" />
-                  <div>
-                    <div className="font-medium">Template #1</div>
-                    <div className="text-sm text-gray-500 mt-1">jalajfd</div>
-                    <div className="text-sm text-gray-400 mt-1">2025-05-07 11:57:04</div>
+              {isLoading ? (
+                <div className="text-center py-4">Loading templates...</div>
+              ) : (
+                <RadioGroup value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                  <div className="space-y-4">
+                    {templates?.map((template: any) => (
+                      <div key={template.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <RadioGroupItem value={template.id} id={template.id} />
+                            <div>
+                              <Label htmlFor={template.id} className="font-medium cursor-pointer">
+                                {template.name}
+                              </Label>
+                              <div className="text-sm text-gray-500 mt-1">{template.subject}</div>
+                              <div className="text-sm text-gray-400 mt-1">
+                                {new Date(template.created_at).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePreview(template.id)}
+                          >
+                            Preview
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </div>
+                </RadioGroup>
+              )}
             </CardContent>
           </Card>
 
@@ -89,7 +148,7 @@ export const NewCampaignContent = () => {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="send-time">Wanneer verzenden?</Label>
-                  <Select>
+                  <Select value={selectedSchedule} onValueChange={setSelectedSchedule}>
                     <SelectTrigger className="w-full mt-1">
                       <SelectValue placeholder="Nu verzenden" />
                     </SelectTrigger>
@@ -106,8 +165,12 @@ export const NewCampaignContent = () => {
 
         {/* Action buttons */}
         <div className="flex justify-between">
-          <Button variant="outline">Annuleren</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700">Volgende stap</Button>
+          <Button variant="outline" onClick={() => navigate("/campaigns")}>
+            Annuleren
+          </Button>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleNext}>
+            Volgende stap
+          </Button>
         </div>
       </div>
     </div>
