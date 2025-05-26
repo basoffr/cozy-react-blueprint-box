@@ -4,18 +4,28 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useNewCampaign } from "@/contexts/NewCampaignContext";
 import { templatesApi } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const NewCampaignContent = () => {
   const navigate = useNavigate();
-  const { setTemplateId, setScheduleAt } = useNewCampaign();
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [selectedSchedule, setSelectedSchedule] = useState("now");
+  const { templateId, setTemplateId, scheduleAt, setScheduleAt } = useNewCampaign();
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(templateId || "");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    scheduleAt ? new Date(scheduleAt) : undefined
+  );
+  const [selectedTime, setSelectedTime] = useState<string>(
+    scheduleAt ? format(new Date(scheduleAt), "HH:mm") : "09:00"
+  );
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ['templates'],
@@ -26,8 +36,23 @@ export const NewCampaignContent = () => {
     try {
       await templatesApi.preview(templateId);
       toast.success("Template preview loaded");
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Preview error:', error);
       // Error handling is done in the API service
+    }
+  };
+
+  const handleTemplateSelect = (template: string) => {
+    setSelectedTemplate(template);
+    setTemplateId(template);
+  };
+
+  const handleDateTimeChange = () => {
+    if (selectedDate && selectedTime) {
+      const [hours, minutes] = selectedTime.split(':');
+      const scheduledDate = new Date(selectedDate);
+      scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      setScheduleAt(scheduledDate.toISOString());
     }
   };
 
@@ -37,10 +62,16 @@ export const NewCampaignContent = () => {
       return;
     }
     
-    setTemplateId(selectedTemplate);
-    setScheduleAt(selectedSchedule === "now" ? null : new Date().toISOString());
+    if (!selectedDate || !selectedTime) {
+      toast.error("Please select a date and time");
+      return;
+    }
+
+    handleDateTimeChange();
     navigate("/campaigns/new/leads");
   };
+
+  const canProceed = selectedTemplate && selectedDate && selectedTime;
 
   return (
     <div className="p-8">
@@ -91,7 +122,7 @@ export const NewCampaignContent = () => {
               {isLoading ? (
                 <div className="text-center py-4">Loading templates...</div>
               ) : (
-                <RadioGroup value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <RadioGroup value={selectedTemplate} onValueChange={handleTemplateSelect}>
                   <div className="space-y-4">
                     {templates?.map((template: any) => (
                       <div key={template.id} className="border border-gray-200 rounded-lg p-4">
@@ -124,40 +155,65 @@ export const NewCampaignContent = () => {
             </CardContent>
           </Card>
 
-          {/* New Template */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Nieuwe template aanmaken</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup defaultValue="new">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="new" id="new" />
-                  <Label htmlFor="new">Nieuwe template aanmaken</Label>
-                </div>
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
           {/* Planning */}
           <Card>
             <CardHeader>
               <CardTitle>Planning</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="send-time">Wanneer verzenden?</Label>
-                  <Select value={selectedSchedule} onValueChange={setSelectedSchedule}>
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Nu verzenden" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="now">Nu verzenden</SelectItem>
-                      <SelectItem value="later">Later verzenden</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Selecteer datum</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal mt-1",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : "Selecteer een datum"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        if (date && selectedTime) {
+                          const [hours, minutes] = selectedTime.split(':');
+                          const scheduledDate = new Date(date);
+                          scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                          setScheduleAt(scheduledDate.toISOString());
+                        }
+                      }}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div>
+                <Label htmlFor="time">Selecteer tijd</Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={selectedTime}
+                  onChange={(e) => {
+                    setSelectedTime(e.target.value);
+                    if (selectedDate && e.target.value) {
+                      const [hours, minutes] = e.target.value.split(':');
+                      const scheduledDate = new Date(selectedDate);
+                      scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                      setScheduleAt(scheduledDate.toISOString());
+                    }
+                  }}
+                  className="mt-1"
+                />
               </div>
             </CardContent>
           </Card>
@@ -168,7 +224,14 @@ export const NewCampaignContent = () => {
           <Button variant="outline" onClick={() => navigate("/campaigns")}>
             Annuleren
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleNext}>
+          <Button 
+            className={cn(
+              "bg-blue-600 hover:bg-blue-700",
+              !canProceed && "opacity-50 cursor-not-allowed"
+            )}
+            onClick={handleNext}
+            disabled={!canProceed}
+          >
             Volgende stap
           </Button>
         </div>

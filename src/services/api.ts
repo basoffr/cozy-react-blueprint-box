@@ -67,9 +67,12 @@ export const leadsApi = {
   getAll: (page: number = 1, size: number = 50) =>
     apiRequest(`/api/leads?page=${page}&size=${size}`),
   getLists: () => apiRequest('/api/leads/lists'),
-  import: (file: File) => {
+  import: (file: File, listName?: string) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (listName) {
+      formData.append('list_name', listName);
+    }
     
     return fetch(`${API_BASE_URL}/api/leads/import`, {
       method: 'POST',

@@ -2,8 +2,63 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Users, Calendar } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNewCampaign } from "@/contexts/NewCampaignContext";
+import { useQuery } from "@tanstack/react-query";
+import { campaignsApi, templatesApi, leadsApi } from "@/services/api";
+import { toast } from "@/components/ui/sonner";
+import { format } from "date-fns";
 
 export const CampaignConfirmationContent = () => {
+  const navigate = useNavigate();
+  const { templateId, listId, scheduleAt, reset } = useNewCampaign();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const { data: templates } = useQuery({
+    queryKey: ['templates'],
+    queryFn: templatesApi.getAll,
+  });
+
+  const { data: leadLists } = useQuery({
+    queryKey: ['leads-lists'],
+    queryFn: leadsApi.getLists,
+  });
+
+  const selectedTemplate = templates?.find((t: any) => t.id === templateId);
+  const selectedList = leadLists?.find((l: any) => l.id.toString() === listId);
+
+  const handleCreateCampaign = async () => {
+    if (!templateId || !listId || !scheduleAt) {
+      toast.error("Missing required campaign data");
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      await campaignsApi.create({
+        template_id: templateId,
+        list_id: listId,
+        schedule_at: scheduleAt,
+      });
+
+      toast.success("Campaign created successfully");
+      reset();
+      navigate("/campaigns");
+      
+    } catch (error: any) {
+      console.error('Campaign creation error:', error);
+      toast.error(error.message || "Failed to create campaign");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handlePrevious = () => {
+    navigate("/campaigns/new/leads");
+  };
+
   return (
     <div className="p-8">
       {/* Header with breadcrumb */}
@@ -58,8 +113,12 @@ export const CampaignConfirmationContent = () => {
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
+                    <span className="text-gray-600">Naam:</span>
+                    <span className="font-medium">{selectedTemplate?.name || 'Onbekend'}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-600">Onderwerp:</span>
-                    <span className="font-medium">wa</span>
+                    <span className="font-medium">{selectedTemplate?.subject || 'Onbekend'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -77,11 +136,11 @@ export const CampaignConfirmationContent = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Lijst:</span>
-                    <span className="font-medium">test</span>
+                    <span className="font-medium">{selectedList?.name || 'Onbekend'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Aantal leads:</span>
-                    <span className="font-medium">223</span>
+                    <span className="font-medium">{selectedList?.lead_count || 0}</span>
                   </div>
                 </div>
               </CardContent>
@@ -98,8 +157,10 @@ export const CampaignConfirmationContent = () => {
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Verzendmethode:</span>
-                    <span className="font-medium">Direct verzenden</span>
+                    <span className="text-gray-600">Geplande verzending:</span>
+                    <span className="font-medium">
+                      {scheduleAt ? format(new Date(scheduleAt), "PPP 'om' HH:mm") : 'Onbekend'}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -109,8 +170,16 @@ export const CampaignConfirmationContent = () => {
 
         {/* Action buttons */}
         <div className="flex justify-between">
-          <Button variant="outline">Terug naar stap 2</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700">Bevestigen en campagne aanmaken</Button>
+          <Button variant="outline" onClick={handlePrevious}>
+            Terug naar stap 2
+          </Button>
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={handleCreateCampaign}
+            disabled={isCreating}
+          >
+            {isCreating ? "Bezig met aanmaken..." : "Bevestigen en campagne aanmaken"}
+          </Button>
         </div>
       </div>
     </div>
