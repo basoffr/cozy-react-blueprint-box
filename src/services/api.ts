@@ -62,6 +62,11 @@ export const templatesApi = {
   delete: (id: string) => apiRequest(`/api/templates/${id}`, { method: 'DELETE' }),
 };
 
+// Senders API
+export const sendersApi = {
+  getAll: () => apiRequest('/api/senders'),
+};
+
 // Leads API
 export const leadsApi = {
   getAll: (page: number = 1, size: number = 50) =>

@@ -17,6 +17,7 @@ import NewCampaign from "./pages/NewCampaign";
 import CampaignLeadSelection from "./pages/CampaignLeadSelection";
 import CampaignConfirmation from "./pages/CampaignConfirmation";
 import NotFound from "./pages/NotFound";
+import SequenceEditor from "./components/sequence/SequenceEditor";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/templates" element={<Templates />} />
+            <Route path="/templates/:id/sequence" element={<SequenceEditor />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/leads/import" element={<LeadsImport />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
