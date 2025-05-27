@@ -58,8 +58,15 @@ export const campaignsApi = {
 // Templates API
 export const templatesApi = {
   getAll: () => apiRequest('/api/templates'),
+  getEmailTemplates: () => apiRequest('/api/templates?type=email'),
+  getById: (id: string) => apiRequest(`/api/templates/${id}`),
   preview: (id: string) => apiRequest(`/api/templates/${id}/preview`, { method: 'POST' }),
   delete: (id: string) => apiRequest(`/api/templates/${id}`, { method: 'DELETE' }),
+  getSequence: (id: string) => apiRequest(`/api/templates/${id}/sequence`),
+  saveSequence: (id: string, steps: any[]) => apiRequest(`/api/templates/${id}/sequence`, {
+    method: 'POST',
+    body: JSON.stringify({ steps }),
+  }),
 };
 
 // Senders API

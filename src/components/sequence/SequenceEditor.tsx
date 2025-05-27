@@ -1,44 +1,30 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Mail, Clock, Phone, GitBranch, Save, X } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { Plus, Save, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
-
-// Types for our data
-interface Sender {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl?: string;
-}
-
-interface Template {
-  id: string;
-  name: string;
-  subject: string;
-  content: string;
-}
-
-interface SequenceStep {
-  id: string;
-  type: 'email' | 'wait' | 'call' | 'branch';
-  title: string;
-  senders?: Sender[];
-  templates?: Template[];
-  waitDays?: number;
-  waitHours?: number;
-  abTestType?: 'equal' | 'round-robin';
-}
+import { SequenceProvider, useSequence, SequenceStep } from '@/contexts/SequenceContext';
+import { DraggableStep } from './DraggableStep';
+import { StepConfigPanel } from './StepConfigPanel';
+import { templatesApi, sendersApi } from '@/services/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.mydomain.com';
 
@@ -47,11 +33,23 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-const SequenceEditor = () => {
+const SequenceEditorContent = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { state, setSteps, addStep, reorderSteps, selectStep, markSaved } = useSequence();
   
-  // Fetch template and senders data
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(100);
+  const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Fetch template data
   const { data: template, isLoading: templateLoading } = useQuery({
     queryKey: ['template', id],
     queryFn: async () => {
@@ -69,10 +67,17 @@ const SequenceEditor = () => {
     enabled: !!id,
   });
 
+  // Fetch senders
   const { data: senders, isLoading: sendersLoading } = useQuery({
     queryKey: ['senders'],
+    queryFn: sendersApi.getAll,
+  });
+
+  // Fetch email templates
+  const { data: templates, isLoading: templatesLoading } = useQuery({
+    queryKey: ['email-templates'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/senders`, {
+      const response = await fetch(`${API_BASE_URL}/api/templates?type=email`, {
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
@@ -85,93 +90,30 @@ const SequenceEditor = () => {
     },
   });
 
-  const availableTemplates = template ? [template] : [];
-  const availableSenders = senders || [];
-  
-  // State
-  const [steps, setSteps] = useState<SequenceStep[]>([
-    { id: 'start', type: 'email', title: 'Sequence Start' },
-  ]);
-  
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState<SequenceStep | null>(null);
-  const [selectedSenders, setSelectedSenders] = useState<Sender[]>([]);
-  const [selectedTemplates, setSelectedTemplates] = useState<Template[]>([]);
-  const [abTestType, setAbTestType] = useState<'equal' | 'round-robin'>('equal');
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Initialize with template when loaded
-  useEffect(() => {
-    if (template && steps.length === 1) {
-      setSteps([
-        { 
-          id: 'start', 
-          type: 'email', 
-          title: 'Sequence Start',
-          templates: [template]
+  // Load existing sequence
+  const { data: existingSequence, isLoading: sequenceLoading } = useQuery({
+    queryKey: ['sequence', id],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/api/templates/${id}/sequence`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
-      ]);
-    }
-  }, [template]);
-  
-  // Handle opening the email step modal
-  const openEmailModal = (step?: SequenceStep) => {
-    if (step) {
-      setCurrentStep(step);
-      setSelectedSenders(step.senders || []);
-      setSelectedTemplates(step.templates || []);
-      setAbTestType(step.abTestType || 'equal');
-    } else {
-      setCurrentStep(null);
-      setSelectedSenders([]);
-      setSelectedTemplates([]);
-      setAbTestType('equal');
-    }
-    setIsEmailModalOpen(true);
-  };
-  
-  // Handle saving the email step
-  const handleSaveEmailStep = () => {
-    if (currentStep) {
-      // Update existing step
-      setSteps(steps.map(step => 
-        step.id === currentStep.id 
-          ? { ...step, senders: selectedSenders, templates: selectedTemplates, abTestType } 
-          : step
-      ));
-    } else {
-      // Create new step
-      const newStep: SequenceStep = {
-        id: `${Date.now()}`,
-        type: 'email',
-        title: selectedTemplates.length > 0 ? selectedTemplates[0].subject : 'New Email',
-        senders: selectedSenders,
-        templates: selectedTemplates,
-        abTestType
-      };
-      setSteps([...steps, newStep]);
-    }
-    setIsEmailModalOpen(false);
-  };
-  
-  // Handle adding a wait step
-  const handleAddWaitStep = () => {
-    const newStep: SequenceStep = {
-      id: `${Date.now()}`,
-      type: 'wait',
-      title: 'Wait',
-      waitDays: 3,
-      waitHours: 0
-    };
-    setSteps([...steps, newStep]);
-  };
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { steps: [] };
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    },
+    enabled: !!id,
+  });
 
-  // Handle saving sequence
-  const handleSaveSequence = async () => {
-    if (!id) return;
-    
-    setIsSaving(true);
-    try {
+  // Save sequence mutation
+  const saveSequenceMutation = useMutation({
+    mutationFn: async (steps: SequenceStep[]) => {
       const response = await fetch(`${API_BASE_URL}/api/templates/${id}/sequence`, {
         method: 'POST',
         headers: {
@@ -186,43 +128,127 @@ const SequenceEditor = () => {
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
+      return response.json();
+    },
+    onSuccess: () => {
       toast.success('Sequence saved');
-      navigate('/templates');
-    } catch (error: any) {
+      markSaved();
+    },
+    onError: (error: any) => {
       console.error('Save sequence error:', error);
       toast.error(error.message || 'Failed to save sequence');
-    } finally {
-      setIsSaving(false);
+    },
+  });
+
+  // Initialize sequence from existing data
+  useEffect(() => {
+    if (existingSequence?.steps?.length > 0) {
+      setSteps(existingSequence.steps);
+    } else if (template && state.steps.length === 0) {
+      // Create initial step with the template
+      const initialStep: SequenceStep = {
+        id: 'initial',
+        type: 'email',
+        senders: [],
+        templateIds: [template.id],
+        position: { x: 0, y: 0 },
+      };
+      setSteps([initialStep]);
+    }
+  }, [existingSequence, template, setSteps, state.steps.length]);
+
+  // Auto-save every 15 seconds
+  useEffect(() => {
+    if (!state.isModified) return;
+
+    const interval = setInterval(() => {
+      if (state.isModified) {
+        saveSequenceMutation.mutate(state.steps);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [state.isModified, state.steps, saveSequenceMutation]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveSequence();
+      }
+      if (e.key === 'Delete' && selectedStepId) {
+        // Handle delete in step config panel
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        // TODO: Implement undo functionality
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedStepId]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = state.steps.findIndex(step => step.id === active.id);
+      const newIndex = state.steps.findIndex(step => step.id === over.id);
+      reorderSteps(oldIndex, newIndex);
     }
   };
 
-  // Toggle sender selection
-  const toggleSender = (sender: Sender) => {
-    if (selectedSenders.some(s => s.id === sender.id)) {
-      setSelectedSenders(selectedSenders.filter(s => s.id !== sender.id));
-    } else {
-      setSelectedSenders([...selectedSenders, sender]);
-    }
+  const handleAddEmailStep = () => {
+    const newStep: SequenceStep = {
+      id: `step-${Date.now()}`,
+      type: 'email',
+      senders: [],
+      templateIds: [],
+    };
+    addStep(newStep);
   };
 
-  // Toggle template selection
-  const toggleTemplate = (template: Template) => {
-    if (selectedTemplates.some(t => t.id === template.id)) {
-      setSelectedTemplates(selectedTemplates.filter(t => t.id !== template.id));
-    } else {
-      setSelectedTemplates([...selectedTemplates, template]);
-    }
+  const handleAddWaitStep = () => {
+    const newStep: SequenceStep = {
+      id: `step-${Date.now()}`,
+      type: 'wait',
+      senders: [],
+      templateIds: [],
+      delayHours: 24,
+    };
+    addStep(newStep);
   };
 
-  if (templateLoading || sendersLoading) {
+  const handleStepSelect = (stepId: string) => {
+    setSelectedStepId(stepId);
+    setIsConfigPanelOpen(true);
+    selectStep(stepId);
+  };
+
+  const handleSaveSequence = () => {
+    saveSequenceMutation.mutate(state.steps);
+  };
+
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 10, 200));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 10, 50));
+  const handleFitToScreen = () => setZoom(100);
+
+  const isLoading = templateLoading || sendersLoading || templatesLoading || sequenceLoading;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex w-full bg-gray-50">
-        <div className="container mx-auto p-6 space-y-6">
+        <div className="flex-1 p-6 space-y-6">
           <div className="flex justify-between items-center">
             <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-32" />
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-24" />
+            </div>
           </div>
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2">
             {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-10 w-24" />
             ))}
@@ -236,188 +262,125 @@ const SequenceEditor = () => {
       </div>
     );
   }
-  
+
+  const selectedStep = selectedStepId ? state.steps.find(s => s.id === selectedStepId) : null;
+
   return (
-    <div className="min-h-screen flex w-full bg-gray-50 overflow-auto">
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-[#5C4DAF]">Sequence Editor</h1>
-          <Button onClick={handleSaveSequence} disabled={isSaving}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'Saving...' : 'Save Sequence'}
-          </Button>
-        </div>
-        
-        {/* Toolbar */}
-        <div className="flex gap-2 mb-4">
-          <Button 
-            variant="outline" 
-            className="border-[#5C4DAF] text-[#5C4DAF] hover:bg-[#5C4DAF]/10" 
-            onClick={() => openEmailModal()}
-          >
-            <Mail className="mr-2 h-4 w-4" /> + Email
-          </Button>
-          <Button 
-            variant="outline" 
-            className="border-[#5C4DAF] text-[#5C4DAF] hover:bg-[#5C4DAF]/10"
-            onClick={handleAddWaitStep}
-          >
-            <Clock className="mr-2 h-4 w-4" /> + Wait
-          </Button>
-          <Button 
-            variant="outline" 
-            className="border-[#5C4DAF] text-[#5C4DAF] hover:bg-[#5C4DAF]/10"
-          >
-            <Phone className="mr-2 h-4 w-4" /> + Call
-          </Button>
-          <Button 
-            variant="outline" 
-            className="border-[#5C4DAF] text-[#5C4DAF] hover:bg-[#5C4DAF]/10"
-          >
-            <GitBranch className="mr-2 h-4 w-4" /> + Branch
-          </Button>
-        </div>
-        
-        {/* Sequence Canvas */}
-        <div className="space-y-4 max-w-3xl mx-auto">
-          {steps.map((step, index) => (
-            <div key={step.id} className="relative">
-              {index > 0 && (
-                <div className="absolute left-6 -top-4 h-4 w-0.5 bg-gray-300"></div>
-              )}
-              <Card className={`p-4 ${step.type === 'email' && index > 0 ? 'border-[#5C4DAF]/50' : ''}`}>
-                {step.type === 'email' && index === 0 ? (
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium">{step.title}</div>
-                  </div>
-                ) : step.type === 'email' ? (
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">Email: {step.title}</div>
-                      <div className="flex gap-2 mt-2">
-                        {step.senders && step.senders.length > 0 && (
-                          <Badge className="bg-pink-500">
-                            {step.senders.length} sender{step.senders.length > 1 ? 's' : ''}
-                          </Badge>
-                        )}
-                        {step.templates && step.templates.length > 1 && (
-                          <Badge className="bg-blue-500">
-                            {step.templates.length} variants
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => openEmailModal(step)}>
-                      Edit
-                    </Button>
-                  </div>
-                ) : step.type === 'wait' ? (
-                  <div className="flex items-center">
-                    <Clock className="text-gray-500 mr-2" />
-                    <span>Wait {step.waitDays} day{step.waitDays !== 1 ? 's' : ''}</span>
-                  </div>
-                ) : null}
-              </Card>
-            </div>
-          ))}
-        </div>
-        
-        {/* Email Step Modal */}
-        <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle className="text-[#5C4DAF]">
-                {currentStep ? 'Edit Email Step' : 'Add Email Step'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select sender(s)</label>
-                <div className="border rounded-md p-4 space-y-2">
-                  {availableSenders.map((sender: Sender) => (
-                    <div key={sender.id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        checked={selectedSenders.some(s => s.id === sender.id)} 
-                        onCheckedChange={() => toggleSender(sender)}
-                      />
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={sender.avatarUrl} />
-                          <AvatarFallback>
-                            {sender.name.split(' ').map((n: string) => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{sender.name}</div>
-                          <div className="text-xs text-gray-500">{sender.email}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+    <div className="min-h-screen flex w-full bg-gray-50">
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b p-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-[#5C4DAF]">Sequence Editor</h1>
+            <div className="flex items-center gap-2">
+              {/* Zoom controls */}
+              <div className="flex items-center gap-1 border rounded-md">
+                <Button variant="ghost" size="sm" onClick={handleZoomOut}>
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="px-2 text-sm">{zoom}%</span>
+                <Button variant="ghost" size="sm" onClick={handleZoomIn}>
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleFitToScreen}>
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
               </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select template(s)</label>
-                <div className="border rounded-md p-4 space-y-3">
-                  {availableTemplates.map((template, idx) => (
-                    <div key={template.id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        checked={selectedTemplates.some(t => t.id === template.id)} 
-                        onCheckedChange={() => toggleTemplate(template)}
-                      />
-                      <div className="flex items-center gap-2">
-                        <Badge variant={idx % 2 === 0 ? "default" : "secondary"} className="h-6 w-6 rounded-full flex items-center justify-center p-0">
-                          {idx % 2 === 0 ? 'A' : 'B'}
-                        </Badge>
-                        <div>
-                          <div className="font-medium">{template.name}</div>
-                          <div className="text-xs text-gray-500">Subject: {template.subject}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {selectedTemplates.length > 1 && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">A/B Test Settings</label>
-                  <Tabs defaultValue="equal" value={abTestType} onValueChange={(v) => setAbTestType(v as 'equal' | 'round-robin')}>
-                    <TabsList className="w-full">
-                      <TabsTrigger value="equal" className="flex-1">Equal distribution (50/50)</TabsTrigger>
-                      <TabsTrigger value="round-robin" className="flex-1">Round robin</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="equal" className="p-4 text-sm text-gray-600">
-                      Each variant will be sent to an equal number of recipients
-                    </TabsContent>
-                    <TabsContent value="round-robin" className="p-4 text-sm text-gray-600">
-                      Variants will be sent in alternating order
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              )}
-            </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEmailModalOpen(false)}>
-                <X className="mr-2 h-4 w-4" />
-                Cancel
-              </Button>
               <Button 
-                onClick={handleSaveEmailStep} 
-                disabled={selectedSenders.length === 0 || selectedTemplates.length === 0}
+                onClick={handleSaveSequence} 
+                disabled={saveSequenceMutation.isPending}
                 className="bg-[#5C4DAF] hover:bg-[#5C4DAF]/90"
               >
                 <Save className="mr-2 h-4 w-4" />
-                Save
+                {saveSequenceMutation.isPending ? 'Saving...' : 'Save Sequence'}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </div>
+        </div>
+
+        {/* Toolbar */}
+        <div className="bg-white border-b p-4">
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="border-[#5C4DAF] text-[#5C4DAF] hover:bg-[#5C4DAF]/10"
+              onClick={handleAddEmailStep}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Email
+            </Button>
+            <Button 
+              variant="outline" 
+              className="border-[#5C4DAF] text-[#5C4DAF] hover:bg-[#5C4DAF]/10"
+              onClick={handleAddWaitStep}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Wait
+            </Button>
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div className="flex-1 flex">
+          <div 
+            className="flex-1 p-6 overflow-auto"
+            style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}
+          >
+            <div className="max-w-3xl mx-auto space-y-4">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={state.steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  {state.steps.map((step) => (
+                    <div key={step.id} className="relative">
+                      <DraggableStep
+                        step={step}
+                        isSelected={step.id === selectedStepId}
+                        onSelect={() => handleStepSelect(step.id)}
+                        senders={senders || []}
+                        templates={templates || []}
+                      />
+                    </div>
+                  ))}
+                </SortableContext>
+              </DndContext>
+              
+              {state.steps.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="mb-4">No steps in your sequence yet.</p>
+                  <Button onClick={handleAddEmailStep}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add First Step
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Step Configuration Panel */}
+          {isConfigPanelOpen && selectedStep && (
+            <StepConfigPanel
+              step={selectedStep}
+              senders={senders || []}
+              templates={templates || []}
+              onClose={() => {
+                setIsConfigPanelOpen(false);
+                setSelectedStepId(null);
+                selectStep(null);
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
+  );
+};
+
+const SequenceEditor = () => {
+  return (
+    <SequenceProvider>
+      <SequenceEditorContent />
+    </SequenceProvider>
   );
 };
 
