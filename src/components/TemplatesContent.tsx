@@ -19,6 +19,10 @@ export function TemplatesContent() {
     navigate(`/templates/${templateId}/sequence`);
   };
 
+  const handleCreateNewTemplate = () => {
+    navigate('/templates/new/sequence');
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -59,7 +63,10 @@ export function TemplatesContent() {
         </div>
         
         <div className="flex items-center gap-4">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleCreateNewTemplate}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Nieuwe template aanmaken
           </Button>

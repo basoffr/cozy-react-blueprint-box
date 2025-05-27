@@ -40,6 +40,7 @@ const App = () => (
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/templates/:id/sequence" element={<SequenceEditor />} />
+            <Route path="/templates/new/sequence" element={<SequenceEditor />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/leads/import" element={<LeadsImport />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

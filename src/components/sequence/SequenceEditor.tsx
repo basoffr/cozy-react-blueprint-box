@@ -41,6 +41,8 @@ const SequenceEditorContent = () => {
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
+  const [isNewTemplate, setIsNewTemplate] = useState(id === 'new');
+  const [templateName, setTemplateName] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -120,21 +122,65 @@ const SequenceEditorContent = () => {
         throw new Error(validationErrors.join(', '));
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/templates/${id}/sequence`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({ steps }),
-      });
+      if (isNewTemplate) {
+        // Create a new template first
+        if (!templateName.trim()) {
+          throw new Error('Template name is required');
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
+        const createTemplateResponse = await fetch(`${API_BASE_URL}/api/templates`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({ 
+            name: templateName,
+            type: 'sequence',
+          }),
+        });
+
+        if (!createTemplateResponse.ok) {
+          const errorData = await createTemplateResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${createTemplateResponse.status}`);
+        }
+
+        const newTemplate = await createTemplateResponse.json();
+        
+        // Now save the sequence with the new template ID
+        const saveSequenceResponse = await fetch(`${API_BASE_URL}/api/templates/${newTemplate.id}/sequence`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({ steps }),
+        });
+
+        if (!saveSequenceResponse.ok) {
+          const errorData = await saveSequenceResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${saveSequenceResponse.status}`);
+        }
+
+        return saveSequenceResponse.json();
+      } else {
+        // Update existing template sequence
+        const response = await fetch(`${API_BASE_URL}/api/templates/${id}/sequence`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({ steps }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+
+        return response.json();
       }
-
-      return response.json();
     },
     onSuccess: () => {
       toast.success('Sequence saved');
@@ -172,9 +218,19 @@ const SequenceEditorContent = () => {
     return errors;
   };
 
-  // Initialize sequence from existing data
+  // Initialize sequence from existing data or create a new one
   useEffect(() => {
-    if (existingSequence?.steps?.length > 0) {
+    if (isNewTemplate) {
+      // Create initial empty step for new template
+      const initialStep: SequenceStep = {
+        id: 'initial',
+        type: 'email',
+        senders: [],
+        templateIds: [],
+        position: { x: 0, y: 0 },
+      };
+      setSteps([initialStep]);
+    } else if (existingSequence?.steps?.length > 0) {
       setSteps(existingSequence.steps);
     } else if (template && state.steps.length === 0) {
       // Create initial step with the template
@@ -187,7 +243,7 @@ const SequenceEditorContent = () => {
       };
       setSteps([initialStep]);
     }
-  }, [existingSequence, template, setSteps, state.steps.length]);
+  }, [existingSequence, template, setSteps, state.steps.length, isNewTemplate]);
 
   // Auto-save every 15 seconds
   useEffect(() => {
@@ -307,7 +363,23 @@ const SequenceEditorContent = () => {
         {/* Header */}
         <div className="bg-white border-b p-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-[#5C4DAF]">Sequence Editor</h1>
+            <div>
+              <h1 className="text-3xl font-bold text-[#5C4DAF]">
+                {isNewTemplate ? 'Create New Sequence' : 'Sequence Editor'}
+              </h1>
+              {isNewTemplate && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="Enter template name"
+                    className="px-3 py-2 border rounded-md w-64"
+                    required
+                  />
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {/* Zoom controls */}
               <div className="flex items-center gap-1 border rounded-md">
