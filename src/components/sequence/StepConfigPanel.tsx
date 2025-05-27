@@ -1,6 +1,5 @@
-
 import React, { useEffect } from 'react';
-import { X, Users, Mail, Clock, AlertCircle } from 'lucide-react';
+import { X, Users, Mail, Clock, AlertCircle, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -50,21 +49,44 @@ export const StepConfigPanel: React.FC<StepConfigPanelProps> = ({
   };
 
   const handleTemplateToggle = (templateId: string) => {
-    const newTemplateIds = step.templateIds.includes(templateId)
-      ? step.templateIds.filter(id => id !== templateId)
-      : [...step.templateIds, templateId];
+    const isCurrentlySelected = step.templateIds.includes(templateId);
     
-    // Reset distribution when templates change
-    const distribution = newTemplateIds.length > 1 
-      ? new Array(newTemplateIds.length).fill(100 / newTemplateIds.length)
-      : undefined;
-    
-    updateStep(step.id, { templateIds: newTemplateIds, distribution });
+    if (isCurrentlySelected) {
+      // Remove template
+      const newTemplateIds = step.templateIds.filter(id => id !== templateId);
+      const distribution = newTemplateIds.length > 1 
+        ? new Array(newTemplateIds.length).fill(100 / newTemplateIds.length)
+        : undefined;
+      
+      updateStep(step.id, { templateIds: newTemplateIds, distribution });
+    } else {
+      // Add template (max 3 per step)
+      if (step.templateIds.length >= 3) return;
+      
+      const newTemplateIds = [...step.templateIds, templateId];
+      const distribution = newTemplateIds.length > 1 
+        ? new Array(newTemplateIds.length).fill(100 / newTemplateIds.length)
+        : undefined;
+      
+      updateStep(step.id, { templateIds: newTemplateIds, distribution });
+    }
   };
 
   const handleDistributionChange = (index: number, value: number[]) => {
     const newDistribution = [...(step.distribution || [])];
     newDistribution[index] = value[0];
+    
+    // Auto-adjust other values to keep total at 100%
+    const total = newDistribution.reduce((sum, val) => sum + val, 0);
+    if (total !== 100 && newDistribution.length > 1) {
+      const otherIndices = newDistribution.map((_, i) => i).filter(i => i !== index);
+      const remaining = 100 - newDistribution[index];
+      const perOther = remaining / otherIndices.length;
+      otherIndices.forEach(i => {
+        newDistribution[i] = perOther;
+      });
+    }
+    
     updateStep(step.id, { distribution: newDistribution });
   };
 
@@ -79,6 +101,7 @@ export const StepConfigPanel: React.FC<StepConfigPanelProps> = ({
   };
 
   const maxSendersReached = step.senders.length >= 5;
+  const maxTemplatesReached = step.templateIds.length >= 3;
 
   return (
     <div className="w-80 border-l bg-white p-6 overflow-y-auto">
@@ -114,7 +137,9 @@ export const StepConfigPanel: React.FC<StepConfigPanelProps> = ({
                   return (
                     <div 
                       key={sender.id} 
-                      className={`flex items-center space-x-3 ${isDisabled ? 'opacity-50' : ''}`}
+                      className={`flex items-center space-x-3 p-2 rounded-lg border ${
+                        isSelected ? 'border-blue-200 bg-blue-50' : 'border-gray-100'
+                      } ${isDisabled ? 'opacity-50' : ''}`}
                     >
                       <Checkbox
                         checked={isSelected}
@@ -147,22 +172,39 @@ export const StepConfigPanel: React.FC<StepConfigPanelProps> = ({
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  Email Templates
+                  Email Templates ({step.templateIds.length}/3)
                 </CardTitle>
+                {maxTemplatesReached && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Max 3 templates per step
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
-                {templates.map((template) => (
-                  <div key={template.id} className="flex items-center space-x-3">
-                    <Checkbox
-                      checked={step.templateIds.includes(template.id)}
-                      onCheckedChange={() => handleTemplateToggle(template.id)}
-                    />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">{template.name}</div>
-                      <div className="text-xs text-gray-500">{template.subject}</div>
+                {templates.map((template) => {
+                  const isSelected = step.templateIds.includes(template.id);
+                  const isDisabled = !isSelected && maxTemplatesReached;
+                  
+                  return (
+                    <div 
+                      key={template.id} 
+                      className={`flex items-center space-x-3 p-3 rounded-lg border ${
+                        isSelected ? 'border-green-200 bg-green-50' : 'border-gray-100'
+                      } ${isDisabled ? 'opacity-50' : ''}`}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => handleTemplateToggle(template.id)}
+                        disabled={isDisabled}
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{template.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{template.subject}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
 
@@ -170,14 +212,22 @@ export const StepConfigPanel: React.FC<StepConfigPanelProps> = ({
             {step.templateIds.length > 1 && step.distribution && (
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Send Distribution</CardTitle>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Percent className="h-4 w-4" />
+                    Distribution
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {step.templateIds.map((templateId, index) => {
                     const template = templates.find(t => t.id === templateId);
+                    const percentage = Math.round(step.distribution?.[index] || 0);
+                    
                     return (
                       <div key={templateId} className="space-y-2">
-                        <Label className="text-sm">{template?.name} - {step.distribution?.[index]}%</Label>
+                        <div className="flex justify-between items-center">
+                          <Label className="text-sm font-medium">{template?.name}</Label>
+                          <span className="text-sm font-semibold text-blue-600">{percentage}%</span>
+                        </div>
                         <Slider
                           value={[step.distribution?.[index] || 50]}
                           onValueChange={(value) => handleDistributionChange(index, value)}
@@ -188,6 +238,9 @@ export const StepConfigPanel: React.FC<StepConfigPanelProps> = ({
                       </div>
                     );
                   })}
+                  <div className="pt-2 border-t text-xs text-gray-500">
+                    Total: {Math.round((step.distribution || []).reduce((sum, val) => sum + val, 0))}%
+                  </div>
                 </CardContent>
               </Card>
             )}

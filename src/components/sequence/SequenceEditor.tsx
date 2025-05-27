@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -161,6 +162,9 @@ const SequenceEditorContent = () => {
         }
         if (step.templateIds.length === 0) {
           errors.push(`Step ${index + 1}: At least one template is required`);
+        }
+        if (step.templateIds.length > 3) {
+          errors.push(`Step ${index + 1}: Maximum 3 templates allowed per step`);
         }
       }
     });

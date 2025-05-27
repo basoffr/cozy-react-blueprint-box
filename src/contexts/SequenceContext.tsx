@@ -6,7 +6,7 @@ export interface SequenceStep {
   id: string;
   type: 'email' | 'wait' | 'branch';
   senders: string[];
-  templateIds: string[];
+  templateIds: string[]; // Max 3 templates per step
   distribution?: number[];
   delayHours?: number;
   children?: SequenceStep[];

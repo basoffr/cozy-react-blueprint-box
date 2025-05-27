@@ -1,49 +1,42 @@
+
 import React, { useState, useEffect } from "react";
 import { Bell, UserRound, Trash2, Plus, Edit, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { sendersApi } from "@/services/api";
+import { sendersApi, settingsApi } from "@/services/api";
+import { toast } from "@/components/ui/sonner";
 
 interface Sender {
   id: string;
   name: string;
   email: string;
-  daily_quota: number;
-  signature?: string;
   avatarUrl?: string;
 }
 
-interface SenderFormData {
-  name: string;
-  email: string;
-  daily_quota: number;
-  signature: string;
+interface Settings {
+  emailSignature: string;
+  defaultFromName: string;
+  replyToEmail: string;
+  trackOpens: boolean;
+  trackClicks: boolean;
 }
 
 export function SettingsContent() {
-  const [activeTab, setActiveTab] = useState("senders");
-  const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAddSenderOpen, setIsAddSenderOpen] = useState(false);
   const [editingSender, setEditingSender] = useState<Sender | null>(null);
-  const [deletingSender, setDeletingSender] = useState<Sender | null>(null);
-  const [formData, setFormData] = useState<SenderFormData>({
-    name: "",
-    email: "",
-    daily_quota: 100,
-    signature: ""
+  const [newSender, setNewSender] = useState({ name: "", email: "", avatarUrl: "" });
+  const [settings, setSettings] = useState<Settings>({
+    emailSignature: "",
+    defaultFromName: "",
+    replyToEmail: "",
+    trackOpens: true,
+    trackClicks: true,
   });
-  const [formErrors, setFormErrors] = useState<Partial<SenderFormData>>({});
 
   const queryClient = useQueryClient();
 
@@ -53,146 +46,181 @@ export function SettingsContent() {
     queryFn: sendersApi.getAll,
   });
 
-  // Create sender mutation
-  const createSenderMutation = useMutation({
-    mutationFn: (data: SenderFormData) => 
-      fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders`, {
+  // Fetch settings
+  const { data: settingsData, isLoading: settingsLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: settingsApi.get,
+  });
+
+  // Update settings when data is fetched
+  useEffect(() => {
+    if (settingsData) {
+      setSettings(settingsData);
+    }
+  }, [settingsData]);
+
+  // Add sender mutation
+  const addSenderMutation = useMutation({
+    mutationFn: async (senderData: { name: string; email: string; avatarUrl?: string }) => {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
-        body: JSON.stringify(data),
-      }).then(res => {
-        if (!res.ok) throw new Error('Failed to create sender');
-        return res.json();
-      }),
+        body: JSON.stringify(senderData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+      
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['senders'] });
-      setIsSenderModalOpen(false);
-      resetForm();
-      toast.success('Sender created successfully');
-      // Emit custom event for sequence editor
+      setIsAddSenderOpen(false);
+      setNewSender({ name: "", email: "", avatarUrl: "" });
+      toast.success('Sender added successfully');
+      
+      // Dispatch event for sequence editor
       window.dispatchEvent(new CustomEvent('senderUpdated'));
     },
-    onError: () => {
-      toast.error('Failed to create sender');
+    onError: (error: any) => {
+      console.error('Add sender error:', error);
+      toast.error(error.message || 'Failed to add sender');
     },
   });
 
   // Update sender mutation
   const updateSenderMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: SenderFormData }) =>
-      fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders/${id}`, {
+    mutationFn: async ({ id, ...senderData }: Sender) => {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
-        body: JSON.stringify(data),
-      }).then(res => {
-        if (!res.ok) throw new Error('Failed to update sender');
-        return res.json();
-      }),
+        body: JSON.stringify(senderData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+      
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['senders'] });
-      setIsSenderModalOpen(false);
-      resetForm();
+      setEditingSender(null);
       toast.success('Sender updated successfully');
+      
+      // Dispatch event for sequence editor
       window.dispatchEvent(new CustomEvent('senderUpdated'));
     },
-    onError: () => {
-      toast.error('Failed to update sender');
+    onError: (error: any) => {
+      console.error('Update sender error:', error);
+      toast.error(error.message || 'Failed to update sender');
     },
   });
 
   // Delete sender mutation
   const deleteSenderMutation = useMutation({
-    mutationFn: (id: string) =>
-      fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders/${id}`, {
+    mutationFn: async (id: string) => {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
-      }).then(res => {
-        if (!res.ok) throw new Error('Failed to delete sender');
-        return res.json();
-      }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+      
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['senders'] });
-      setIsDeleteDialogOpen(false);
-      setDeletingSender(null);
       toast.success('Sender deleted successfully');
+      
+      // Dispatch event for sequence editor
       window.dispatchEvent(new CustomEvent('senderUpdated'));
     },
-    onError: () => {
-      toast.error('Failed to delete sender');
+    onError: (error: any) => {
+      console.error('Delete sender error:', error);
+      toast.error(error.message || 'Failed to delete sender');
     },
   });
 
-  const resetForm = () => {
-    setFormData({ name: "", email: "", daily_quota: 100, signature: "" });
-    setFormErrors({});
-    setEditingSender(null);
-  };
+  // Update settings mutation
+  const updateSettingsMutation = useMutation({
+    mutationFn: settingsApi.update,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('Settings saved successfully');
+    },
+    onError: (error: any) => {
+      console.error('Update settings error:', error);
+      toast.error(error.message || 'Failed to save settings');
+    },
+  });
 
-  const validateForm = (): boolean => {
-    const errors: Partial<SenderFormData> = {};
+  const handleAddSender = () => {
+    if (!newSender.name || !newSender.email) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
     
-    if (!formData.name.trim()) errors.name = "Name is required";
-    if (!formData.email.trim()) errors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Invalid email format";
-    if (formData.daily_quota < 1 || formData.daily_quota > 500) {
-      errors.daily_quota = "Daily quota must be between 1 and 500";
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    addSenderMutation.mutate(newSender);
   };
 
-  const handleOpenSenderModal = (sender?: Sender) => {
-    if (sender) {
-      setEditingSender(sender);
-      setFormData({
-        name: sender.name,
-        email: sender.email,
-        daily_quota: sender.daily_quota,
-        signature: sender.signature || ""
-      });
-    } else {
-      resetForm();
+  const handleUpdateSender = () => {
+    if (!editingSender || !editingSender.name || !editingSender.email) {
+      toast.error('Please fill in all required fields');
+      return;
     }
-    setIsSenderModalOpen(true);
+    
+    updateSenderMutation.mutate(editingSender);
   };
 
-  const handleSaveSender = () => {
-    if (!validateForm()) return;
-
-    if (editingSender) {
-      updateSenderMutation.mutate({ id: editingSender.id, data: formData });
-    } else {
-      createSenderMutation.mutate(formData);
+  const handleDeleteSender = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this sender?')) {
+      deleteSenderMutation.mutate(id);
     }
   };
 
-  const handleDeleteSender = (sender: Sender) => {
-    setDeletingSender(sender);
-    setIsDeleteDialogOpen(true);
+  const handleSettingsChange = (field: keyof Settings, value: string | boolean | number) => {
+    const updatedSettings = { ...settings, [field]: typeof value === 'string' && field !== 'emailSignature' && field !== 'defaultFromName' && field !== 'replyToEmail' ? parseInt(value) || 0 : value };
+    setSettings(updatedSettings);
+    updateSettingsMutation.mutate(updatedSettings);
   };
 
-  const confirmDelete = () => {
-    if (deletingSender) {
-      deleteSenderMutation.mutate(deletingSender.id);
-    }
-  };
+  if (sendersLoading || settingsLoading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="space-y-4">
+            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       {/* Header */}
       <header className="flex items-center justify-between mb-8">
         <div>
-          <nav className="text-sm text-gray-500 mb-2">Instellingen</nav>
-          <h1 className="text-2xl font-bold text-gray-900">Instellingen</h1>
+          <nav className="text-sm text-gray-500 mb-2">Settings</nav>
+          <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
         </div>
         
         <div className="flex items-center gap-4">
@@ -208,293 +236,235 @@ export function SettingsContent() {
         </div>
       </header>
 
-      {/* Tabbed Interface */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-96">
-          <TabsTrigger value="senders">Email Senders</TabsTrigger>
-          <TabsTrigger value="smtp">SMTP & API Keys</TabsTrigger>
-          <TabsTrigger value="general">General</TabsTrigger>
-        </TabsList>
-
-        {/* Email Senders Tab */}
-        <TabsContent value="senders">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+      <div className="space-y-8">
+        {/* Senders Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <UserRound className="h-5 w-5" />
                 Email Senders
               </CardTitle>
-              <Button onClick={() => handleOpenSenderModal()} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Sender
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {sendersLoading ? (
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="flex items-center space-x-4">
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-48" />
-                        <Skeleton className="h-3 w-32" />
-                      </div>
+              <Dialog open={isAddSenderOpen} onOpenChange={setIsAddSenderOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Sender
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Sender</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="sender-name">Name</Label>
+                      <Input
+                        id="sender-name"
+                        value={newSender.name}
+                        onChange={(e) => setNewSender({ ...newSender, name: e.target.value })}
+                        placeholder="Sender name"
+                      />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sender</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Daily Quota</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {senders?.map((sender: Sender) => (
-                      <TableRow key={sender.id}>
-                        <TableCell className="flex items-center space-x-3">
-                          <Avatar>
-                            <AvatarImage src={sender.avatarUrl} />
-                            <AvatarFallback>
-                              {sender.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{sender.name}</span>
-                        </TableCell>
-                        <TableCell>{sender.email}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{sender.daily_quota}/day</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenSenderModal(sender)}
+                    <div>
+                      <Label htmlFor="sender-email">Email</Label>
+                      <Input
+                        id="sender-email"
+                        type="email"
+                        value={newSender.email}
+                        onChange={(e) => setNewSender({ ...newSender, email: e.target.value })}
+                        placeholder="sender@example.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sender-avatar">Avatar URL (optional)</Label>
+                      <Input
+                        id="sender-avatar"
+                        value={newSender.avatarUrl}
+                        onChange={(e) => setNewSender({ ...newSender, avatarUrl: e.target.value })}
+                        placeholder="https://example.com/avatar.jpg"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleAddSender} 
+                      disabled={addSenderMutation.isPending}
+                      className="w-full"
+                    >
+                      {addSenderMutation.isPending ? 'Adding...' : 'Add Sender'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {senders?.map((sender: Sender) => (
+                <div key={sender.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={sender.avatarUrl} />
+                      <AvatarFallback>
+                        {sender.name.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{sender.name}</div>
+                      <div className="text-sm text-gray-500">{sender.email}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingSender(sender)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit Sender</DialogTitle>
+                        </DialogHeader>
+                        {editingSender && (
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="edit-sender-name">Name</Label>
+                              <Input
+                                id="edit-sender-name"
+                                value={editingSender.name}
+                                onChange={(e) => setEditingSender({ ...editingSender, name: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-sender-email">Email</Label>
+                              <Input
+                                id="edit-sender-email"
+                                type="email"
+                                value={editingSender.email}
+                                onChange={(e) => setEditingSender({ ...editingSender, email: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="edit-sender-avatar">Avatar URL</Label>
+                              <Input
+                                id="edit-sender-avatar"
+                                value={editingSender.avatarUrl || ''}
+                                onChange={(e) => setEditingSender({ ...editingSender, avatarUrl: e.target.value })}
+                              />
+                            </div>
+                            <Button 
+                              onClick={handleUpdateSender} 
+                              disabled={updateSenderMutation.isPending}
+                              className="w-full"
                             >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteSender(sender)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
+                              {updateSenderMutation.isPending ? 'Updating...' : 'Update Sender'}
                             </Button>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* SMTP & API Keys Tab */}
-        <TabsContent value="smtp">
-          <Card>
-            <CardHeader>
-              <CardTitle>SMTP & API Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="smtp-server" className="text-sm font-medium text-gray-700">
-                  SMTP-server
-                </Label>
-                <Input
-                  id="smtp-server"
-                  defaultValue="smtp.example.com"
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="smtp-port" className="text-sm font-medium text-gray-700">
-                  SMTP-poort
-                </Label>
-                <Input
-                  id="smtp-port"
-                  defaultValue="587"
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="email-sender" className="text-sm font-medium text-gray-700">
-                  E-mailadres (afzender)
-                </Label>
-                <Input
-                  id="email-sender"
-                  defaultValue="jij@example.com"
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="send-delay" className="text-sm font-medium text-gray-700">
-                  Verzendvertraging (seconden)
-                </Label>
-                <Input
-                  id="send-delay"
-                  defaultValue="300"
-                  className="mt-1"
-                />
-              </div>
-
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2">
-                Save SMTP Settings
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* General Tab */}
-        <TabsContent value="general">
-          <Card>
-            <CardHeader>
-              <CardTitle>General Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="batch-size" className="text-sm font-medium text-gray-700">
-                  Standaard batchgrootte
-                </Label>
-                <Input
-                  id="batch-size"
-                  defaultValue="10"
-                  className="mt-1"
-                />
-              </div>
-
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2">
-                Save General Settings
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Sender Modal */}
-      <Dialog open={isSenderModalOpen} onOpenChange={setIsSenderModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingSender ? 'Edit Sender' : 'Add New Sender'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="sender-name">Display Name</Label>
-              <Input
-                id="sender-name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className={formErrors.name ? "border-red-500" : ""}
-              />
-              {formErrors.name && (
-                <p className="text-sm text-red-500 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {formErrors.name}
-                </p>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteSender(sender.id)}
+                      disabled={deleteSenderMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )) || (
+                <div className="text-center py-8 text-gray-500">
+                  <UserRound className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No senders configured yet.</p>
+                  <p className="text-sm">Add your first sender to get started.</p>
+                </div>
               )}
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="sender-email">Email Address</Label>
+        {/* Email Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Email Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="default-from-name">Default From Name</Label>
               <Input
-                id="sender-email"
+                id="default-from-name"
+                value={settings.defaultFromName}
+                onChange={(e) => handleSettingsChange('defaultFromName', e.target.value)}
+                placeholder="Your Company Name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="reply-to-email">Reply-To Email</Label>
+              <Input
+                id="reply-to-email"
                 type="email"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className={formErrors.email ? "border-red-500" : ""}
-              />
-              {formErrors.email && (
-                <p className="text-sm text-red-500 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {formErrors.email}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sender-quota">Daily Quota (max 500)</Label>
-              <Input
-                id="sender-quota"
-                type="number"
-                min="1"
-                max="500"
-                value={formData.daily_quota}
-                onChange={(e) => setFormData(prev => ({ ...prev, daily_quota: parseInt(e.target.value) || 1 }))}
-                className={formErrors.daily_quota ? "border-red-500" : ""}
-              />
-              {formErrors.daily_quota && (
-                <p className="text-sm text-red-500 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {formErrors.daily_quota}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sender-signature">Signature (optional)</Label>
-              <Textarea
-                id="sender-signature"
-                value={formData.signature}
-                onChange={(e) => setFormData(prev => ({ ...prev, signature: e.target.value }))}
-                rows={3}
+                value={settings.replyToEmail}
+                onChange={(e) => handleSettingsChange('replyToEmail', e.target.value)}
+                placeholder="noreply@yourcompany.com"
               />
             </div>
-          </div>
+            <div>
+              <Label htmlFor="email-signature">Email Signature</Label>
+              <textarea
+                id="email-signature"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={4}
+                value={settings.emailSignature}
+                onChange={(e) => handleSettingsChange('emailSignature', e.target.value)}
+                placeholder="Best regards,&#10;Your Name&#10;Your Company"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSenderModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSaveSender}
-              disabled={createSenderMutation.isPending || updateSenderMutation.isPending}
-            >
-              {editingSender ? 'Update' : 'Create'} Sender
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete Sender</DialogTitle>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <p className="text-sm text-gray-600">
-              Are you sure you want to delete <strong>{deletingSender?.name}</strong>? 
-              This action cannot be undone.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={deleteSenderMutation.isPending}
-            >
-              Delete Sender
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Tracking Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tracking Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Track Email Opens</div>
+                <div className="text-sm text-gray-500">Monitor when recipients open your emails</div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.trackOpens}
+                  onChange={(e) => handleSettingsChange('trackOpens', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Track Link Clicks</div>
+                <div className="text-sm text-gray-500">Monitor when recipients click links in your emails</div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.trackClicks}
+                  onChange={(e) => handleSettingsChange('trackClicks', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
