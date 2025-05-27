@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Bell, UserRound, Trash2, Plus, Edit, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,7 @@ export function SettingsContent() {
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingSender, setEditingSender] = useState<Sender | null>(null);
-  const [deletingSender, setDeleteingSender] = useState<Sender | null>(null);
+  const [deletingSender, setDeletingSender] = useState<Sender | null>(null);
   const [formData, setFormData] = useState<SenderFormData>({
     name: "",
     email: "",
@@ -432,7 +431,7 @@ export function SettingsContent() {
                 min="1"
                 max="500"
                 value={formData.daily_quota}
-                onChange={(e) => setFormData(prev => ({ ...prev, daily_quota: parseInt(e.target.value) || 0 }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, daily_quota: parseInt(e.target.value) || 1 }))}
                 className={formErrors.daily_quota ? "border-red-500" : ""}
               />
               {formErrors.daily_quota && (
