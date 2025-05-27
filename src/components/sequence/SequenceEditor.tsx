@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -114,6 +113,12 @@ const SequenceEditorContent = () => {
   // Save sequence mutation
   const saveSequenceMutation = useMutation({
     mutationFn: async (steps: SequenceStep[]) => {
+      // Validate steps before saving
+      const validationErrors = validateSequence(steps);
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join(', '));
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/templates/${id}/sequence`, {
         method: 'POST',
         headers: {
@@ -133,12 +138,35 @@ const SequenceEditorContent = () => {
     onSuccess: () => {
       toast.success('Sequence saved');
       markSaved();
+      // Navigate back to templates
+      navigate('/templates');
     },
     onError: (error: any) => {
       console.error('Save sequence error:', error);
       toast.error(error.message || 'Failed to save sequence');
     },
   });
+
+  // Validation function
+  const validateSequence = (steps: SequenceStep[]): string[] => {
+    const errors: string[] = [];
+    
+    steps.forEach((step, index) => {
+      if (step.type === 'email') {
+        if (step.senders.length === 0) {
+          errors.push(`Step ${index + 1}: At least one sender is required`);
+        }
+        if (step.senders.length > 5) {
+          errors.push(`Step ${index + 1}: Maximum 5 senders allowed`);
+        }
+        if (step.templateIds.length === 0) {
+          errors.push(`Step ${index + 1}: At least one template is required`);
+        }
+      }
+    });
+    
+    return errors;
+  };
 
   // Initialize sequence from existing data
   useEffect(() => {
@@ -237,6 +265,10 @@ const SequenceEditorContent = () => {
 
   const isLoading = templateLoading || sendersLoading || templatesLoading || sequenceLoading;
 
+  // Check if sequence is valid for launch
+  const validationErrors = validateSequence(state.steps);
+  const isSequenceValid = validationErrors.length === 0;
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex w-full bg-gray-50">
@@ -288,8 +320,9 @@ const SequenceEditorContent = () => {
               </div>
               <Button 
                 onClick={handleSaveSequence} 
-                disabled={saveSequenceMutation.isPending}
+                disabled={saveSequenceMutation.isPending || !isSequenceValid}
                 className="bg-[#5C4DAF] hover:bg-[#5C4DAF]/90"
+                title={!isSequenceValid ? validationErrors.join(', ') : ''}
               >
                 <Save className="mr-2 h-4 w-4" />
                 {saveSequenceMutation.isPending ? 'Saving...' : 'Save Sequence'}

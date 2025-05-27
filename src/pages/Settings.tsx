@@ -2,6 +2,7 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SettingsContent } from "@/components/SettingsContent";
+import { SuccessToast } from "@/components/sequence/SuccessToast";
 
 const Settings = () => {
   return (
@@ -10,6 +11,7 @@ const Settings = () => {
         <AppSidebar />
         <main className="flex-1 overflow-auto">
           <SettingsContent />
+          <SuccessToast />
         </main>
       </SidebarProvider>
     </div>
