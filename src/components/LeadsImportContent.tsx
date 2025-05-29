@@ -1,98 +1,192 @@
 
-import { Bell, Upload, Link, Edit } from "lucide-react";
+import { Bell, Upload, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
-import { leadsApi } from "@/services/api";
+import Papa from "papaparse";
+import { supabase } from "@/integrations/supabase/client";
+
+interface CSVRow {
+  email: string;
+  bedrijf?: string;
+  website?: string;
+  linkedin?: string;
+  image_path?: string;
+}
 
 export function LeadsImportContent() {
   const navigate = useNavigate();
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [listName, setListName] = useState("");
-  const [googleSheetUrl, setGoogleSheetUrl] = useState("");
-  const [manualEmails, setManualEmails] = useState("");
+  const [zipFile, setZipFile] = useState<File | null>(null);
+  const [csvProcessing, setCsvProcessing] = useState(false);
+  const [zipProcessing, setZipProcessing] = useState(false);
+  const [csvProgress, setCsvProgress] = useState(0);
+  const [zipProgress, setZipProgress] = useState(0);
+  const [csvComplete, setCsvComplete] = useState(false);
+  const [zipComplete, setZipComplete] = useState(false);
+  const [csvResults, setCsvResults] = useState<{ imported: number; duplicates: number } | null>(null);
+  const [zipResults, setZipResults] = useState<{ count: number; duplicates: number } | null>(null);
 
   const handleCsvUpload = async () => {
-    if (!csvFile || !listName.trim()) {
-      toast.error("Please select a CSV file and enter a list name");
+    if (!csvFile) {
+      toast.error("Please select a CSV file");
       return;
     }
 
-    if (!csvFile.name.toLowerCase().endsWith('.csv')) {
-      toast.error("Please select a valid CSV file");
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadProgress(0);
+    setCsvProcessing(true);
+    setCsvProgress(0);
 
     try {
-      const formData = new FormData();
-      formData.append('file', csvFile);
-      formData.append('list_name', listName.trim());
+      // Parse CSV file
+      Papa.parse(csvFile, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          console.log('CSV parsed:', results.data);
+          setCsvProgress(30);
 
-      // Simulate progress for demo (in real app, this would track actual upload)
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 100);
+          const rows = results.data as CSVRow[];
+          
+          // Filter valid rows (must have email)
+          const validRows = rows.filter(row => row.email && row.email.trim());
+          
+          if (validRows.length === 0) {
+            throw new Error("No valid rows found in CSV. Make sure there's an 'email' column.");
+          }
 
-      await leadsApi.import(csvFile);
-      
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      
-      toast.success("Leads imported successfully");
-      
-      // Reset form
-      setCsvFile(null);
-      setListName("");
-      setUploadProgress(0);
-      
-      // Navigate to leads page
-      navigate("/leads");
-      
+          setCsvProgress(60);
+
+          // Prepare data for insertion
+          const leadsData = validRows.map(row => ({
+            email: row.email.trim(),
+            bedrijf: row.bedrijf?.trim() || null,
+            website: row.website?.trim() || null,
+            linkedin: row.linkedin?.trim() || null,
+            image_path: row.image_path?.trim() || null,
+          }));
+
+          // Insert into Supabase
+          const { data, error } = await supabase
+            .from('leads')
+            .insert(leadsData)
+            .select();
+
+          setCsvProgress(90);
+
+          if (error) {
+            // Handle duplicate key errors gracefully
+            if (error.code === '23505') {
+              toast.error("Some leads already exist. Please check for duplicates.");
+            } else {
+              throw error;
+            }
+          }
+
+          setCsvProgress(100);
+          setCsvComplete(true);
+          setCsvResults({ 
+            imported: data?.length || 0, 
+            duplicates: validRows.length - (data?.length || 0)
+          });
+          
+          toast.success(`CSV imported successfully! ${data?.length || 0} leads added.`);
+        },
+        error: (error) => {
+          throw new Error(`CSV parsing error: ${error.message}`);
+        }
+      });
     } catch (error: any) {
       console.error('CSV upload error:', error);
-      toast.error(error.message || "Failed to import leads");
+      toast.error(error.message || "Failed to import CSV");
+      setCsvProgress(0);
     } finally {
-      setIsUploading(false);
+      setCsvProcessing(false);
     }
   };
 
-  const handleGoogleSheetImport = async () => {
-    if (!googleSheetUrl.trim()) {
-      toast.error("Please enter a Google Sheet URL");
+  const handleZipUpload = async () => {
+    if (!zipFile) {
+      toast.error("Please select a ZIP file");
       return;
     }
 
-    toast.error("Google Sheet import not implemented yet");
-  };
-
-  const handleManualEntry = async () => {
-    if (!manualEmails.trim()) {
-      toast.error("Please enter email addresses");
+    if (zipFile.size > 50 * 1024 * 1024) {
+      toast.error("ZIP file must be less than 50MB");
       return;
     }
 
-    toast.error("Manual entry not implemented yet");
+    setZipProcessing(true);
+    setZipProgress(0);
+
+    try {
+      setZipProgress(20);
+
+      // Create FormData and send to edge function
+      const formData = new FormData();
+      formData.append('file', zipFile);
+
+      setZipProgress(40);
+
+      const { data, error } = await supabase.functions.invoke('import_avatars', {
+        body: zipFile,
+        headers: {
+          'Content-Type': 'application/zip',
+        },
+      });
+
+      setZipProgress(80);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Unknown error occurred');
+      }
+
+      setZipProgress(100);
+      setZipComplete(true);
+      setZipResults({ 
+        count: data.count, 
+        duplicates: data.duplicates 
+      });
+      
+      toast.success(`Avatars uploaded successfully! ${data.count} files processed.`);
+
+      if (data.errors && data.errors.length > 0) {
+        console.warn('Some files had errors:', data.errors);
+        toast.error(`${data.errors.length} files had errors. Check console for details.`);
+      }
+    } catch (error: any) {
+      console.error('ZIP upload error:', error);
+      toast.error(error.message || "Failed to import avatars");
+      setZipProgress(0);
+    } finally {
+      setZipProcessing(false);
+    }
   };
+
+  const handleFinish = () => {
+    toast.success("Leads & avatars imported successfully!", {
+      duration: 3000,
+    });
+    navigate("/leads");
+  };
+
+  const canFinish = csvComplete && zipComplete;
 
   return (
     <div className="p-6">
       {/* Header */}
       <header className="flex items-center justify-between mb-8">
         <div>
-          <nav className="text-sm text-gray-500 mb-2">Leads/Importeren</nav>
-          <h1 className="text-2xl font-bold text-gray-900">Leads importeren</h1>
+          <nav className="text-sm text-gray-500 mb-2">Leads/Bulk Import</nav>
+          <h1 className="text-2xl font-bold text-gray-900">Bulk Import Leads & Avatars</h1>
         </div>
         
         <div className="flex items-center gap-4">
@@ -109,166 +203,169 @@ export function LeadsImportContent() {
       </header>
 
       {/* Import Wizard */}
-      <div className="max-w-4xl">
-        <Tabs defaultValue="csv" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="csv" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Upload CSV
-            </TabsTrigger>
-            <TabsTrigger value="googlesheet" className="flex items-center gap-2">
-              <Link className="h-4 w-4" />
-              Google Sheet URL
-            </TabsTrigger>
-            <TabsTrigger value="manual" className="flex items-center gap-2">
-              <Edit className="h-4 w-4" />
-              Manual Entry
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="csv">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload CSV File</CardTitle>
-                <p className="text-sm text-gray-600">
-                  Upload a CSV file with leads. Required column: email. Optional: name, company, function, website.
+      <div className="max-w-4xl space-y-6">
+        {/* Step 1: CSV Upload */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {csvComplete ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex items-center justify-center text-xs font-bold">
+                  1
+                </div>
+              )}
+              Upload CSV with Lead Data
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              Upload a CSV file with columns: email (required), bedrijf, website, linkedin, image_path
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="csvFile" className="text-sm font-medium text-gray-700">
+                CSV File (max 5MB)
+              </Label>
+              <Input
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                className="mt-1"
+                disabled={csvProcessing || csvComplete}
+              />
+              {csvFile && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Selected: {csvFile.name} ({(csvFile.size / 1024).toFixed(1)} KB)
                 </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="listName" className="text-sm font-medium text-gray-700">
-                    Lead List Name
-                  </Label>
-                  <Input
-                    id="listName"
-                    type="text"
-                    placeholder="Enter list name"
-                    value={listName}
-                    onChange={(e) => setListName(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="csvFile" className="text-sm font-medium text-gray-700">
-                    CSV File
-                  </Label>
-                  <Input
-                    id="csvFile"
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                    className="mt-1"
-                  />
-                  {csvFile && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Selected: {csvFile.name}
-                    </p>
-                  )}
-                </div>
-                
-                {isUploading && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Upload Progress
-                    </Label>
-                    <Progress value={uploadProgress} className="w-full" />
-                    <p className="text-sm text-gray-500">{uploadProgress}% complete</p>
-                  </div>
-                )}
+              )}
+            </div>
+            
+            {csvProcessing && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Processing CSV...
+                </Label>
+                <Progress value={csvProgress} className="w-full" />
+                <p className="text-sm text-gray-500">{csvProgress}% complete</p>
+              </div>
+            )}
 
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleCsvUpload}
-                    disabled={isUploading || !csvFile || !listName.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    {isUploading ? "Uploading..." : "Upload CSV"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setCsvFile(null);
-                      setListName("");
-                      setUploadProgress(0);
-                    }}
-                    disabled={isUploading}
-                  >
-                    Reset
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="googlesheet">
-            <Card>
-              <CardHeader>
-                <CardTitle>Import from Google Sheet</CardTitle>
-                <p className="text-sm text-gray-600">
-                  Paste a Google Sheet URL to import leads directly from your spreadsheet.
+            {csvComplete && csvResults && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-800">
+                  ✅ CSV processed: {csvResults.imported} leads imported
+                  {csvResults.duplicates > 0 && `, ${csvResults.duplicates} duplicates skipped`}
                 </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="googleSheetUrl" className="text-sm font-medium text-gray-700">
-                    Google Sheet URL
-                  </Label>
-                  <Input
-                    id="googleSheetUrl"
-                    type="url"
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    value={googleSheetUrl}
-                    onChange={(e) => setGoogleSheetUrl(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <Button
-                  onClick={handleGoogleSheetImport}
-                  disabled={!googleSheetUrl.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Import from Google Sheet
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            )}
 
-          <TabsContent value="manual">
-            <Card>
-              <CardHeader>
-                <CardTitle>Manual Entry</CardTitle>
-                <p className="text-sm text-gray-600">
-                  Enter email addresses manually, one per line.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="manualEmails" className="text-sm font-medium text-gray-700">
-                    Email Addresses
-                  </Label>
-                  <Textarea
-                    id="manualEmails"
-                    placeholder="email1@example.com&#10;email2@example.com&#10;email3@example.com"
-                    value={manualEmails}
-                    onChange={(e) => setManualEmails(e.target.value)}
-                    rows={8}
-                    className="mt-1"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Enter one email address per line
-                  </p>
+            <Button
+              onClick={handleCsvUpload}
+              disabled={csvProcessing || !csvFile || csvComplete}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {csvProcessing ? "Processing..." : csvComplete ? "CSV Imported ✓" : "Import CSV"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Step 2: ZIP Upload */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {zipComplete ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex items-center justify-center text-xs font-bold">
+                  2
                 </div>
-                <Button
-                  onClick={handleManualEntry}
-                  disabled={!manualEmails.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Import Emails
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              )}
+              Upload ZIP with Avatar Images
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              Upload a ZIP file containing avatar images in an "avatars/" folder (e.g., avatars/user1.png)
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="zipFile" className="text-sm font-medium text-gray-700">
+                ZIP File (max 50MB)
+              </Label>
+              <Input
+                id="zipFile"
+                type="file"
+                accept=".zip"
+                onChange={(e) => setZipFile(e.target.files?.[0] || null)}
+                className="mt-1"
+                disabled={zipProcessing || zipComplete}
+              />
+              {zipFile && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Selected: {zipFile.name} ({(zipFile.size / 1024 / 1024).toFixed(1)} MB)
+                </p>
+              )}
+            </div>
+            
+            {zipProcessing && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Uploading Avatars...
+                </Label>
+                <Progress value={zipProgress} className="w-full" />
+                <p className="text-sm text-gray-500">{zipProgress}% complete</p>
+              </div>
+            )}
+
+            {zipComplete && zipResults && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-800">
+                  ✅ ZIP processed: {zipResults.count} avatars uploaded
+                  {zipResults.duplicates > 0 && `, ${zipResults.duplicates} duplicates replaced`}
+                </p>
+              </div>
+            )}
+
+            <Button
+              onClick={handleZipUpload}
+              disabled={zipProcessing || !zipFile || zipComplete}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {zipProcessing ? "Uploading..." : zipComplete ? "ZIP Imported ✓" : "Import ZIP"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Finish Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {canFinish ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex items-center justify-center text-xs font-bold">
+                  3
+                </div>
+              )}
+              Complete Import
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              {canFinish 
+                ? "Both CSV and ZIP have been processed successfully. Click finish to view your leads."
+                : "Complete both CSV and ZIP uploads to finish the import process."
+              }
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleFinish}
+              disabled={!canFinish}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {canFinish ? "Finish & View Leads" : "Complete Steps 1 & 2 First"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -1,1 +1,5 @@
+
 project_id = "wwxezgpnjpntbvihemvb"
+
+[functions.import_avatars]
+verify_jwt = false
