@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { NewCampaignProvider } from "@/contexts/NewCampaignContext";
+import { AuthProvider } from "@/contexts/AuthProvider";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
@@ -16,6 +18,7 @@ import Campaigns from "./pages/Campaigns";
 import NewCampaign from "./pages/NewCampaign";
 import CampaignLeadSelection from "./pages/CampaignLeadSelection";
 import CampaignConfirmation from "./pages/CampaignConfirmation";
+import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import SequenceEditor from "./components/sequence/SequenceEditor";
 
@@ -23,32 +26,94 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <NewCampaignProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/index" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/campaigns" element={<Campaigns />} />
-            <Route path="/campaigns/new" element={<NewCampaign />} />
-            <Route path="/campaigns/new/leads" element={<CampaignLeadSelection />} />
-            <Route path="/campaigns/new/confirm" element={<CampaignConfirmation />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/statistics" element={<Statistics />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/templates/:id/sequence" element={<SequenceEditor />} />
-            <Route path="/templates/new/sequence" element={<SequenceEditor />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/leads/import" element={<LeadsImport />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </NewCampaignProvider>
+    <AuthProvider>
+      <NewCampaignProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/index" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/campaigns" element={
+                <ProtectedRoute>
+                  <Campaigns />
+                </ProtectedRoute>
+              } />
+              <Route path="/campaigns/new" element={
+                <ProtectedRoute>
+                  <NewCampaign />
+                </ProtectedRoute>
+              } />
+              <Route path="/campaigns/new/leads" element={
+                <ProtectedRoute>
+                  <CampaignLeadSelection />
+                </ProtectedRoute>
+              } />
+              <Route path="/campaigns/new/confirm" element={
+                <ProtectedRoute>
+                  <CampaignConfirmation />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              <Route path="/statistics" element={
+                <ProtectedRoute>
+                  <Statistics />
+                </ProtectedRoute>
+              } />
+              <Route path="/templates" element={
+                <ProtectedRoute>
+                  <Templates />
+                </ProtectedRoute>
+              } />
+              <Route path="/templates/:id/sequence" element={
+                <ProtectedRoute>
+                  <SequenceEditor />
+                </ProtectedRoute>
+              } />
+              <Route path="/templates/new/sequence" element={
+                <ProtectedRoute>
+                  <SequenceEditor />
+                </ProtectedRoute>
+              } />
+              <Route path="/leads" element={
+                <ProtectedRoute>
+                  <Leads />
+                </ProtectedRoute>
+              } />
+              <Route path="/leads/import" element={
+                <ProtectedRoute>
+                  <LeadsImport />
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={
+                <ProtectedRoute>
+                  <NotFound />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </NewCampaignProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
