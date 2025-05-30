@@ -1,6 +1,6 @@
 
 import { Bell, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +34,7 @@ export function LeadsContent() {
   const { visibleColumns, availableColumns } = useVisibleColumns();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [appliedFilters, setAppliedFilters] = useState<any[]>([]);
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
   const { data: leads, isLoading, refetch } = useQuery({
     queryKey: ['leads', appliedFilters],
@@ -117,6 +118,13 @@ export function LeadsContent() {
     selectedLeads.includes(lead.id)
   );
 
+  // Update the indeterminate state when selection changes
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = isSomePageSelected && !isAllPageSelected;
+    }
+  }, [isSomePageSelected, isAllPageSelected]);
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -169,10 +177,8 @@ export function LeadsContent() {
                     <DropdownMenuTrigger asChild>
                       <div className="flex items-center space-x-1">
                         <Checkbox
+                          ref={selectAllCheckboxRef}
                           checked={isAllPageSelected}
-                          ref={(ref) => {
-                            if (ref) ref.indeterminate = isSomePageSelected && !isAllPageSelected;
-                          }}
                           onCheckedChange={() => handleSelectAll('page')}
                         />
                         <ChevronDown className="h-3 w-3" />
