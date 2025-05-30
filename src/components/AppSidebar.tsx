@@ -1,5 +1,5 @@
 
-import { Home, Send, Users, FileText, BarChart3, Settings, Plus, Upload, ChevronLeft } from "lucide-react";
+import { Home, Send, Users, FileText, BarChart3, Settings, ChevronLeft } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -28,34 +28,10 @@ const navigationItems = [
     ariaLabel: "Campaigns"
   },
   {
-    title: "New Campaign – Step 1",
-    icon: Plus,
-    url: "/campaigns/new",
-    ariaLabel: "New Campaign Step 1 - Template Selection"
-  },
-  {
-    title: "New Campaign – Step 2",
-    icon: Users,
-    url: "/campaigns/new/leads",
-    ariaLabel: "New Campaign Step 2 - Lead Selection"
-  },
-  {
-    title: "New Campaign – Step 3",
-    icon: Send,
-    url: "/campaigns/new/confirm",
-    ariaLabel: "New Campaign Step 3 - Confirmation"
-  },
-  {
     title: "Leads",
     icon: Users,
     url: "/leads",
     ariaLabel: "Leads"
-  },
-  {
-    title: "Leads Import",
-    icon: Upload,
-    url: "/leads/import",
-    ariaLabel: "Leads Import"
   },
   {
     title: "Templates",

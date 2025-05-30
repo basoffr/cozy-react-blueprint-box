@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +14,13 @@ import { useNewCampaign } from "@/contexts/NewCampaignContext";
 import { templatesApi } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigateBack } from "@/hooks/useNavigateBack";
 
 export const NewCampaignContent = () => {
   const navigate = useNavigate();
+  const navigateBack = useNavigateBack("/campaigns");
   const { templateId, setTemplateId, scheduleAt, setScheduleAt } = useNewCampaign();
   const [selectedTemplate, setSelectedTemplate] = useState<string>(templateId || "");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -75,12 +78,25 @@ export const NewCampaignContent = () => {
 
   return (
     <div className="p-8">
-      {/* Header with breadcrumb */}
+      {/* Header with breadcrumb and back button */}
       <div className="mb-8">
-        <div className="text-sm text-gray-500 mb-2">
-          Campaigns/Nieuwe Campagne
+        <div className="flex items-center gap-4 mb-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={navigateBack}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Terug
+          </Button>
+          <div>
+            <div className="text-sm text-gray-500 mb-2">
+              Campaigns/Nieuwe Campagne
+            </div>
+            <h1 className="text-2xl font-semibold text-gray-900">Nieuwe campagne aanmaken</h1>
+          </div>
         </div>
-        <h1 className="text-2xl font-semibold text-gray-900">Nieuwe campagne aanmaken</h1>
       </div>
 
       {/* Step indicator */}
@@ -221,7 +237,7 @@ export const NewCampaignContent = () => {
 
         {/* Action buttons */}
         <div className="flex justify-between">
-          <Button variant="outline" onClick={() => navigate("/campaigns")}>
+          <Button variant="outline" onClick={navigateBack}>
             Annuleren
           </Button>
           <Button 
