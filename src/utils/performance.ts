@@ -1,4 +1,6 @@
 
+import React from 'react';
+
 export class PerformanceMonitor {
   private static measurements: Map<string, number> = new Map();
   
