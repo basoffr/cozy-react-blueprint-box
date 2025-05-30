@@ -1,7 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
-import { screen } from '@testing-library/dom';
+import { render, screen } from '@testing-library/react';
 import SequenceEditor from './SequenceEditor';
 
 describe('SequenceEditor', () => {

@@ -1,4 +1,3 @@
-
 import { Bell, Plus, Upload } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ import { leadsApi } from "@/services/api";
 export function LeadsContent() {
   const { data: leads, isLoading } = useQuery({
     queryKey: ['leads'],
-    queryFn: leadsApi.getAll,
+    queryFn: () => leadsApi.getAll(),
   });
 
   return (
