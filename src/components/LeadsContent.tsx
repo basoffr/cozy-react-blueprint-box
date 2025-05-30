@@ -1,4 +1,3 @@
-
 import { Bell, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -34,7 +33,7 @@ export function LeadsContent() {
   const { visibleColumns, availableColumns } = useVisibleColumns();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [appliedFilters, setAppliedFilters] = useState<any[]>([]);
-  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+  const selectAllCheckboxRef = useRef<HTMLButtonElement>(null);
 
   const { data: leads, isLoading, refetch } = useQuery({
     queryKey: ['leads', appliedFilters],
