@@ -187,18 +187,21 @@ export type Database = {
       }
       templates: {
         Row: {
+          created_at: string | null
           html: string | null
           id: string
           owner: string | null
           subject: string | null
         }
         Insert: {
+          created_at?: string | null
           html?: string | null
           id?: string
           owner?: string | null
           subject?: string | null
         }
         Update: {
+          created_at?: string | null
           html?: string | null
           id?: string
           owner?: string | null

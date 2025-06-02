@@ -22,7 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
 import { SequenceProvider, useSequence, SequenceStep } from '@/contexts/SequenceContext';
 import { DraggableStep } from './DraggableStep';
-import { StepConfigPanel } from './StepConfigPanel';
+import { VirtualizedStepConfig } from './VirtualizedStepConfig';
+import { useDebouncedDragHandler } from './DebouncedDragHandler';
 import { templatesApi, sendersApi } from '@/services/api';
 import { PerformanceMonitor, ProfiledComponent } from '@/utils/performance';
 
@@ -36,7 +37,7 @@ const getAuthHeaders = () => {
 const SequenceEditorContent = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { state, setSteps, addStep, reorderSteps, selectStep, markSaved } = useSequence();
+  const { state, setSteps, addStep, reorderSteps, selectStep, markSaved, updateStep } = useSequence();
   
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
@@ -47,6 +48,12 @@ const SequenceEditorContent = () => {
   useEffect(() => {
     PerformanceMonitor.logPageLoad('Sequence Editor');
   }, []);
+
+  // Initialize debounced drag handler
+  const { handleDragMove } = useDebouncedDragHandler({
+    onStepUpdate: updateStep,
+    debounceMs: 250
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -477,9 +484,9 @@ const SequenceEditorContent = () => {
               </div>
             </div>
 
-            {/* Step Configuration Panel */}
+            {/* Virtualized Step Configuration Panel */}
             {isConfigPanelOpen && selectedStep && (
-              <StepConfigPanel
+              <VirtualizedStepConfig
                 step={selectedStep}
                 senders={senders || []}
                 templates={templates || []}
