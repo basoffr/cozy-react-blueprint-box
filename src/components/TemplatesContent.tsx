@@ -1,73 +1,39 @@
 
-import { Bell, Plus, Edit } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Bell, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { templatesApi } from "@/services/api";
+import { templatesApi } from "@/services/templatesApi";
 import { PerformanceMonitor, ProfiledComponent } from "@/utils/performance";
-import React, { useEffect } from "react";
+import { OptimizedTemplateRow } from "./OptimizedTemplateRow";
+import { TemplatePreviewModal } from "./TemplatePreviewModal";
 
-// Memoized template row component
-const TemplateRow = React.memo(({ template, onEditSequence }: {
-  template: any;
-  onEditSequence: (id: string) => void;
-}) => {
-  return (
-    <Card className="bg-white border border-gray-200">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {template.name}
-            </h3>
-            <p className="text-gray-600 mb-2">{template.subject}</p>
-            <p className="text-sm text-gray-500">
-              {template.createdAt ? `Aangemaakt op ${template.createdAt}` : 'Recently created'}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => onEditSequence(template.id)}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Sequence
-            </Button>
-            <Button variant="outline" size="sm">
-              Bewerken
-            </Button>
-            <Button variant="outline" size="sm">
-              Verwijderen
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-});
-
-TemplateRow.displayName = 'TemplateRow';
+const TEMPLATES_PER_PAGE = 20;
 
 export function TemplatesContent() {
   const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   
   useEffect(() => {
     PerformanceMonitor.logPageLoad('Templates List');
   }, []);
   
-  const { data: templates, isLoading, error } = useQuery({
-    queryKey: ['templates'],
+  const { data: templatesResponse, isLoading, error } = useQuery({
+    queryKey: ['templates-list', currentPage],
     queryFn: () => {
       PerformanceMonitor.startMeasurement('templates-fetch');
-      return templatesApi.getAll().then(result => {
+      return templatesApi.getList(currentPage, TEMPLATES_PER_PAGE).then(result => {
         PerformanceMonitor.endMeasurement('templates-fetch');
         return result;
       });
     },
   });
+
+  const templates = templatesResponse?.data || [];
+  const totalPages = templatesResponse?.totalPages || 1;
 
   const handleEditSequence = (templateId: string) => {
     navigate(`/templates/${templateId}/sequence`);
@@ -75,6 +41,14 @@ export function TemplatesContent() {
 
   const handleCreateNewTemplate = () => {
     navigate('/templates/new/sequence');
+  };
+
+  const handlePreview = (templateId: string) => {
+    setPreviewTemplateId(templateId);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewTemplateId(null);
   };
 
   if (isLoading) {
@@ -100,7 +74,7 @@ export function TemplatesContent() {
 
           {/* Templates List Skeleton */}
           <div className="space-y-4">
-            {[1, 2, 3].map((index) => (
+            {Array.from({ length: TEMPLATES_PER_PAGE }, (_, index) => (
               <Skeleton key={index} className="h-24 w-full" />
             ))}
           </div>
@@ -141,18 +115,50 @@ export function TemplatesContent() {
 
         {/* Templates List */}
         <div className="space-y-4">
-          {templates?.map((template: any) => (
-            <TemplateRow
-              key={template.id}
-              template={template}
-              onEditSequence={handleEditSequence}
-            />
-          )) || (
+          {templates.length > 0 ? (
+            templates.map((template: any) => (
+              <OptimizedTemplateRow
+                key={template.id}
+                template={template}
+                onEditSequence={handleEditSequence}
+                onPreview={handlePreview}
+              />
+            ))
+          ) : (
             <div className="text-center py-8 text-gray-500">
               No templates found
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-8 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-4">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+
+        {/* Preview Modal */}
+        <TemplatePreviewModal
+          templateId={previewTemplateId}
+          onClose={handleClosePreview}
+        />
       </div>
     </ProfiledComponent>
   );
