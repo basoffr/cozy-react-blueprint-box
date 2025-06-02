@@ -185,6 +185,41 @@ export type Database = {
         }
         Relationships: []
       }
+      step_variants: {
+        Row: {
+          html: string | null
+          id: string
+          step_id: string | null
+          subject: string | null
+          variant_idx: number | null
+          weight_percent: number | null
+        }
+        Insert: {
+          html?: string | null
+          id?: string
+          step_id?: string | null
+          subject?: string | null
+          variant_idx?: number | null
+          weight_percent?: number | null
+        }
+        Update: {
+          html?: string | null
+          id?: string
+          step_id?: string | null
+          subject?: string | null
+          variant_idx?: number | null
+          weight_percent?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "step_variants_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       templates: {
         Row: {
           created_at: string | null

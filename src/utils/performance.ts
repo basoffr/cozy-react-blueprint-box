@@ -1,5 +1,5 @@
 
-import React from 'react';
+import { Profiler } from 'react';
 
 export class PerformanceMonitor {
   private static measurements: Map<string, number> = new Map();
@@ -61,8 +61,8 @@ export const ProfiledComponent: React.FC<{
   };
 
   return (
-    <React.Profiler id={id} onRender={onRender}>
+    <Profiler id={id} onRender={onRender}>
       {children}
-    </React.Profiler>
+    </Profiler>
   );
 };
