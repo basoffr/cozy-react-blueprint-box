@@ -1,5 +1,5 @@
 
-import { Profiler } from 'react';
+import React, { Profiler } from 'react';
 
 export class PerformanceMonitor {
   private static measurements: Map<string, number> = new Map();
