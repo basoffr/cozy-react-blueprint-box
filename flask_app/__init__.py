@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from .routes.campaigns import campaigns_bp
 
 # Load environment variables from .env file
 load_dotenv()
@@ -82,6 +83,17 @@ def create_app():
             "subject": f"Test Subject {template_id}",
             "html": f"<h1>Template {template_id}</h1><p>This is a test template.</p>"
         })
+        
+    @app.route("/stats/overview/", methods=["GET"])
+    def stats_overview():
+        # TODO: echte aggregaties
+        data = {
+            "leads_total": 0,
+            "campaigns_total": 0,
+            "open_rate": 0.0,
+            "click_rate": 0.0,
+        }
+        return jsonify(data), 200
     
     # Handle 404 errors
     @app.errorhandler(404)
@@ -93,6 +105,11 @@ def create_app():
             "message": f"The requested URL {request.path} was not found on this server.",
             "status": 404
         }), 404
+    
+    # Register blueprints
+    app.register_blueprint(campaigns_bp)
+    from .routes.email_webhooks import email_webhooks_bp
+    app.register_blueprint(email_webhooks_bp)
     
     return app
 

@@ -71,3 +71,56 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Backend API
+
+### Campaigns
+
+The backend provides a RESTful API for managing campaigns with owner-based access control.
+
+#### Endpoints
+
+| Method | Path | Description | Status Codes |
+|--------|------|-------------|-------------|
+| GET | `/campaigns` | List all campaigns for authenticated user | 200, 500 |
+| POST | `/campaigns` | Create a new campaign | 201, 400, 500 |
+| GET | `/campaigns/<uuid>` | Get a specific campaign by ID | 200, 404, 500 |
+| PATCH | `/campaigns/<uuid>` | Update a specific campaign | 200, 400, 404, 500 |
+| DELETE | `/campaigns/<uuid>` | Delete a specific campaign | 204, 404, 500 |
+
+#### Authentication
+
+All endpoints require authentication:
+- Production: `Authorization: Bearer <supabase-jwt>`
+- Development: `X-API-Key: dev-secret`
+
+#### Example Request (Development)
+
+```bash
+# List all campaigns
+curl -X GET http://localhost:5000/campaigns \
+  -H "X-API-Key: dev-secret"
+
+# Create a new campaign
+curl -X POST http://localhost:5000/campaigns \
+  -H "X-API-Key: dev-secret" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Summer Sale 2025", "description": "Promotional campaign for summer products"}'
+```
+
+#### Example Campaign Object
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Summer Sale 2025",
+  "description": "Promotional campaign for summer products",
+  "owner": "auth0|user123",
+  "created_at": "2025-06-01T12:00:00Z",
+  "updated_at": "2025-06-01T12:00:00Z"
+}
+```
+
+#### Row-Level Security
+
+All campaign data is owner-scoped using Supabase Row-Level Security (RLS). This means users can only access campaigns they own, as determined by the `owner` field which is automatically set to the authenticated user's ID during creation.
