@@ -1,0 +1,101 @@
+import os
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Get the development API key
+DEV_KEY = os.getenv("DEV_API_KEY", "dev-secret")
+
+def create_app():
+    app = Flask(__name__)
+    app.env = os.getenv("FLASK_ENV", "development")
+    
+    # Configure CORS
+    CORS(app, origins=[
+        "http://127.0.0.1:5173"
+    ], supports_credentials=True)
+    
+    # You can override these origins in production with an environment variable
+    # Example usage:
+    # allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'https://app.mydomain.com').split(',')
+    # CORS(app, origins=allowed_origins, supports_credentials=True)
+    
+    @app.before_request
+    def dev_api_key_bypass():
+        # Skip authentication for OPTIONS requests (preflight)
+        if request.method == 'OPTIONS':
+            return None
+            
+        # Skip auth check for the root endpoint
+        if request.path == '/':
+            return None
+            
+        # In development mode, check for API key
+        if app.env == "development":
+            if request.headers.get("X-API-Key") == DEV_KEY:
+                return None  # skip auth, no redirect
+                
+        # For this example, we'll simulate an auth check
+        # In a real app, you would check session/token here
+        
+        # If no auth and not bypassed, return 401 instead of redirecting
+        # This prevents the CORS preflight redirect issue
+        if app.env == "development" and not request.headers.get("X-API-Key"):
+            return jsonify({"error": "Authentication required"}), 401
+    
+    @app.route('/')
+    def hello():
+        return {"message": "API is running"}
+    
+    # Add debugging routes
+    @app.route('/debug/request')
+    def debug_request():
+        """Return information about the current request for debugging"""
+        return {
+            "path": request.path,
+            "method": request.method,
+            "headers": dict(request.headers),
+            "args": request.args.to_dict(),
+            "endpoint": request.endpoint,
+            "url": request.url,
+            "base_url": request.base_url,
+        }
+    
+    # Add mock API endpoints for testing
+    @app.route('/templates/', methods=['GET'])
+    def get_templates():
+        return jsonify({
+            "templates": [
+                {"id": "1", "name": "Template 1", "subject": "Test Subject 1"},
+                {"id": "2", "name": "Template 2", "subject": "Test Subject 2"}
+            ]
+        })
+    
+    @app.route('/templates/<template_id>/', methods=['GET'])
+    def get_template(template_id):
+        return jsonify({
+            "id": template_id,
+            "name": f"Template {template_id}",
+            "subject": f"Test Subject {template_id}",
+            "html": f"<h1>Template {template_id}</h1><p>This is a test template.</p>"
+        })
+    
+    # Handle 404 errors
+    @app.errorhandler(404)
+    def not_found(e):
+        # Log the request details for debugging
+        app.logger.error(f"404 Error: {request.path} - Method: {request.method} - Headers: {dict(request.headers)}")
+        return jsonify({
+            "error": "Not Found",
+            "message": f"The requested URL {request.path} was not found on this server.",
+            "status": 404
+        }), 404
+    
+    return app
+
+if __name__ == '__main__':
+    app = create_app()
+    app.run(debug=True)

@@ -1,12 +1,6 @@
 
 import { toast } from "@/components/ui/sonner";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.mydomain.com';
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import { apiRequest as baseApiRequest, getAuthHeaders } from "@/api/api";
 
 const handleApiError = (error: any) => {
   console.error('API Error:', error);
@@ -16,7 +10,6 @@ const handleApiError = (error: any) => {
 };
 
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
   const config = {
     ...options,
     headers: {
@@ -27,13 +20,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   };
 
   try {
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}`);
-    }
-    
+    const response = await baseApiRequest(endpoint, config);
     return await response.json();
   } catch (error) {
     handleApiError(error);
@@ -42,14 +29,14 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 
 // Dashboard API
 export const dashboardApi = {
-  getOverview: () => apiRequest('/api/stats/overview'),
+  getOverview: () => apiRequest('/stats/overview/'),
 };
 
 // Campaigns API
 export const campaignsApi = {
-  getAll: () => apiRequest('/api/campaigns'),
+  getAll: () => apiRequest('/campaigns/'),
   create: (data: { template_id: string; list_id: string; schedule_at?: string }) =>
-    apiRequest('/api/campaigns', {
+    apiRequest('/campaigns/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -57,13 +44,13 @@ export const campaignsApi = {
 
 // Templates API
 export const templatesApi = {
-  getAll: () => apiRequest('/api/templates'),
-  getEmailTemplates: () => apiRequest('/api/templates?type=email'),
-  getById: (id: string) => apiRequest(`/api/templates/${id}`),
-  preview: (id: string) => apiRequest(`/api/templates/${id}/preview`, { method: 'POST' }),
-  delete: (id: string) => apiRequest(`/api/templates/${id}`, { method: 'DELETE' }),
-  getSequence: (id: string) => apiRequest(`/api/templates/${id}/sequence`),
-  saveSequence: (id: string, steps: any[]) => apiRequest(`/api/templates/${id}/sequence`, {
+  getAll: () => apiRequest('/templates/'),
+  getEmailTemplates: () => apiRequest('/templates/?type=email'),
+  getById: (id: string) => apiRequest(`/templates/${id}/`),
+  preview: (id: string) => apiRequest(`/templates/${id}/preview/`, { method: 'POST' }),
+  delete: (id: string) => apiRequest(`/templates/${id}/`, { method: 'DELETE' }),
+  getSequence: (id: string) => apiRequest(`/templates/${id}/sequence/`),
+  saveSequence: (id: string, steps: any[]) => apiRequest(`/templates/${id}/sequence/`, {
     method: 'POST',
     body: JSON.stringify({ steps }),
   }),
@@ -71,14 +58,14 @@ export const templatesApi = {
 
 // Senders API
 export const sendersApi = {
-  getAll: () => apiRequest('/api/senders'),
+  getAll: () => apiRequest('/senders/'),
 };
 
 // Leads API
 export const leadsApi = {
   getAll: (page: number = 1, size: number = 50) =>
-    apiRequest(`/api/leads?page=${page}&size=${size}`),
-  getLists: () => apiRequest('/api/leads/lists'),
+    apiRequest(`/leads/?page=${page}&size=${size}`),
+  getLists: () => apiRequest('/leads/lists/'),
   import: (file: File, listName?: string) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -86,15 +73,12 @@ export const leadsApi = {
       formData.append('list_name', listName);
     }
     
-    return fetch(`${API_BASE_URL}/api/leads/import`, {
+    // Use the new baseApiRequest directly with the endpoint
+    return baseApiRequest('/leads/import/', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: formData,
     }).then(async (response) => {
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
       return response.json();
     }).catch(handleApiError);
   },
@@ -102,13 +86,13 @@ export const leadsApi = {
 
 // Statistics API
 export const statisticsApi = {
-  getDaily: (range: string = '30d') => apiRequest(`/api/stats/daily?range=${range}`),
+  getDaily: (range: string = '30d') => apiRequest(`/stats/daily/?range=${range}`),
 };
 
 // Settings API
 export const settingsApi = {
-  get: () => apiRequest('/api/settings'),
-  update: (data: any) => apiRequest('/api/settings', {
+  get: () => apiRequest('/settings/'),
+  update: (data: any) => apiRequest('/settings/', {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
