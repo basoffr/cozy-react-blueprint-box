@@ -32,8 +32,8 @@ export function TemplatesContent() {
     },
   });
 
-  const templates = templatesResponse?.data || [];
-  const totalPages = templatesResponse?.totalPages || 1;
+  const templates = Array.isArray(templatesResponse) ? templatesResponse : [];
+  const totalPages = 1; // Since we don't have pagination info from the API
 
   const handleEditSequence = (templateId: string) => {
     navigate(`/templates/${templateId}/sequence`);

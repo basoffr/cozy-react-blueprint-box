@@ -6,9 +6,10 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useNewCampaign } from "@/contexts/NewCampaignContext";
 import { useQuery } from "@tanstack/react-query";
-import { campaignsApi, templatesApi, leadsApi } from "@/services/api";
+import { campaignsApi, leadsApi } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
 import { format } from "date-fns";
+import { apiRequest } from "@/api/api";
 
 export const CampaignConfirmationContent = () => {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export const CampaignConfirmationContent = () => {
 
   const { data: templates } = useQuery({
     queryKey: ['templates'],
-    queryFn: templatesApi.getAll,
+    queryFn: () => apiRequest('/templates'),
   });
 
   const { data: leadLists } = useQuery({
