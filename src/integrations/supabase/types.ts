@@ -54,6 +54,7 @@ export type Database = {
           name: string | null
           owner: string | null
           template_id: string | null
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -61,6 +62,7 @@ export type Database = {
           name?: string | null
           owner?: string | null
           template_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -68,6 +70,7 @@ export type Database = {
           name?: string | null
           owner?: string | null
           template_id?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -82,6 +85,8 @@ export type Database = {
       email_log: {
         Row: {
           campaign_id: string | null
+          clicked_at: string | null
+          clicked_url: string | null
           id: string
           lead_id: string | null
           owner: string | null
@@ -91,6 +96,8 @@ export type Database = {
         }
         Insert: {
           campaign_id?: string | null
+          clicked_at?: string | null
+          clicked_url?: string | null
           id?: string
           lead_id?: string | null
           owner?: string | null
@@ -100,6 +107,8 @@ export type Database = {
         }
         Update: {
           campaign_id?: string | null
+          clicked_at?: string | null
+          clicked_url?: string | null
           id?: string
           lead_id?: string | null
           owner?: string | null
@@ -139,6 +148,7 @@ export type Database = {
           id: string
           image_path: string | null
           linkedin: string | null
+          owner: string | null
           website: string | null
         }
         Insert: {
@@ -148,6 +158,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           linkedin?: string | null
+          owner?: string | null
           website?: string | null
         }
         Update: {
@@ -157,6 +168,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           linkedin?: string | null
+          owner?: string | null
           website?: string | null
         }
         Relationships: []
@@ -227,6 +239,7 @@ export type Database = {
           id: string
           owner: string | null
           subject: string | null
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -234,6 +247,7 @@ export type Database = {
           id?: string
           owner?: string | null
           subject?: string | null
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -241,18 +255,42 @@ export type Database = {
           id?: string
           owner?: string | null
           subject?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
     }
     Views: {
-      [_ in never]: never
+      vw_stats_overview: {
+        Row: {
+          campaigns_total: number | null
+          click_rate: number | null
+          leads_total: number | null
+          open_rate: number | null
+          owner: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_stats_overview: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          campaigns_total: number
+          leads_total: number
+          open_rate: number
+          click_rate: number
+        }[]
+      }
     }
     Enums: {
-      email_status: "pending" | "sent" | "bounced" | "opened" | "replied" | "clicked"
+      email_status:
+        | "pending"
+        | "sent"
+        | "bounced"
+        | "opened"
+        | "replied"
+        | "clicked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -368,7 +406,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      email_status: ["pending", "sent", "bounced", "opened", "replied", "clicked"],
+      email_status: [
+        "pending",
+        "sent",
+        "bounced",
+        "opened",
+        "replied",
+        "clicked",
+      ],
     },
   },
 } as const

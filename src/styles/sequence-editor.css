@@ -1,0 +1,97 @@
+
+/* Sequence Editor Dark Theme Styles */
+
+.sequence-canvas {
+  background-color: #1e293b; /* slate-800 */
+}
+
+.sequence-canvas::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.3) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.sequence-step-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.sequence-step-card:hover {
+  transform: translateY(-2px);
+}
+
+.sequence-step-card.selected {
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.sequence-step-card.invalid {
+  box-shadow: 0 0 0 2px #ef4444;
+}
+
+.add-step-button {
+  transition: all 0.15s ease-in-out;
+}
+
+.add-step-button:hover {
+  transform: scale(1.1);
+}
+
+/* Inspector panel animations */
+.inspector-enter {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.inspector-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: all 200ms ease-out;
+}
+
+.inspector-exit {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.inspector-exit-active {
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 200ms ease-in;
+}
+
+/* Drag and drop styles */
+.sortable-ghost {
+  opacity: 0.5;
+}
+
+.sortable-chosen {
+  transform: scale(1.02);
+}
+
+.sortable-drag {
+  transform: rotate(5deg);
+  z-index: 999;
+}
+
+/* Custom scrollbar for dark theme */
+.inspector-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.inspector-panel::-webkit-scrollbar-track {
+  background: #334155;
+}
+
+.inspector-panel::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 3px;
+}
+
+.inspector-panel::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
