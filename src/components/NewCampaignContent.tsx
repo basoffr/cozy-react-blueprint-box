@@ -1,105 +1,52 @@
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useNewCampaign } from "@/contexts/NewCampaignContext";
-import { templatesApi } from "@/services/api";
+import { templatesApi } from "@/services/templatesApi";
 import { toast } from "@/components/ui/sonner";
-import { format } from "date-fns";
-import { CalendarIcon, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNavigateBack } from "@/hooks/useNavigateBack";
 
 export const NewCampaignContent = () => {
   const navigate = useNavigate();
-  const navigateBack = useNavigateBack("/campaigns");
-  const { templateId, setTemplateId, scheduleAt, setScheduleAt } = useNewCampaign();
+  const { templateId, setTemplateId } = useNewCampaign();
   const [selectedTemplate, setSelectedTemplate] = useState<string>(templateId || "");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    scheduleAt ? new Date(scheduleAt) : undefined
-  );
-  const [selectedTime, setSelectedTime] = useState<string>(
-    scheduleAt ? format(new Date(scheduleAt), "HH:mm") : "09:00"
-  );
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['templates'],
-    queryFn: () => templatesApi.getAll(),
+  const { data: templates, isLoading } = useQuery({
+    queryKey: ['templates-sequences'],
+    queryFn: () => templatesApi.getList(1, 100), // Get all templates for selection
   });
-  
-  // Safely extract templates array from response
-  const templates = data?.items ?? [];
 
-  const handlePreview = async (templateId: string) => {
-    try {
-      await templatesApi.preview(templateId);
-      toast.success("Template preview loaded");
-    } catch (error: any) {
-      console.error('Preview error:', error);
-      // Error handling is done in the API service
-    }
-  };
-
-  const handleTemplateSelect = (template: string) => {
-    setSelectedTemplate(template);
-    setTemplateId(template);
-  };
-
-  const handleDateTimeChange = () => {
-    if (selectedDate && selectedTime) {
-      const [hours, minutes] = selectedTime.split(':');
-      const scheduledDate = new Date(selectedDate);
-      scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      setScheduleAt(scheduledDate.toISOString());
-    }
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    setTemplateId(templateId);
   };
 
   const handleNext = () => {
     if (!selectedTemplate) {
-      toast.error("Please select a template");
+      toast.error("Please select a sequence template");
       return;
     }
     
-    if (!selectedDate || !selectedTime) {
-      toast.error("Please select a date and time");
-      return;
-    }
-
-    handleDateTimeChange();
     navigate("/campaigns/new/leads");
   };
 
-  const canProceed = selectedTemplate && selectedDate && selectedTime;
+  const handleBack = () => {
+    navigate("/campaigns");
+  };
 
   return (
     <div className="p-8">
-      {/* Header with breadcrumb and back button */}
+      {/* Header with breadcrumb */}
       <div className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={navigateBack}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Terug
-          </Button>
-          <div>
-            <div className="text-sm text-gray-500 mb-2">
-              Campaigns/Nieuwe Campagne
-            </div>
-            <h1 className="text-2xl font-semibold text-gray-900">Nieuwe campagne aanmaken</h1>
-          </div>
+        <div className="text-sm text-gray-500 mb-2">
+          Campaigns/Nieuwe Campagne/Sequence Kiezen
         </div>
+        <h1 className="text-2xl font-semibold text-gray-900">Nieuwe campagne aanmaken</h1>
       </div>
 
       {/* Step indicator */}
@@ -109,7 +56,7 @@ export const NewCampaignContent = () => {
             <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
               1
             </div>
-            <span className="ml-2 text-sm font-medium text-blue-600">Template kiezen</span>
+            <span className="ml-2 text-sm font-medium text-blue-600">Sequence kiezen</span>
           </div>
           <div className="w-8 h-px bg-gray-300"></div>
           <div className="flex items-center">
@@ -128,145 +75,57 @@ export const NewCampaignContent = () => {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Stap 1: Kies een template</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Stap 1: Kies een sequence template</h2>
           
-          {/* Existing Templates */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Bestaande templates</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="text-center py-4">Loading templates...</div>
-              ) : templates.length === 0 ? (
-                <div className="text-center py-4">No templates available</div>
-              ) : (
-                <RadioGroup
-                  value={selectedTemplate}
-                  onValueChange={handleTemplateSelect}
-                  className="space-y-2"
-                >
-                  <div className="space-y-4">
-                    {templates.map((template) => (
-                      <div
-                        key={template.id}
-                        className={cn(
-                          "border rounded-lg p-4 transition-all",
-                          selectedTemplate === template.id
-                            ? "border-blue-600 bg-blue-50"
-                            : "hover:border-gray-400"
-                        )}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-start space-x-3">
-                            <RadioGroupItem value={template.id} id={template.id} />
-                            <div>
-                              <Label
-                                htmlFor={template.id}
-                                className="text-base font-medium cursor-pointer"
-                              >
-                                {template.name}
-                              </Label>
-                              <div className="text-sm text-gray-500 mt-1">{template.subject}</div>
-                              <div className="text-sm text-gray-400 mt-1">
-                                {new Date(template.created_at).toLocaleString()}
-                              </div>
+          {isLoading ? (
+            <div className="text-center py-8">Loading templates...</div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Beschikbare sequences</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {templates?.map((template: any) => (
+                      <div key={template.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <RadioGroupItem value={template.id} id={template.id} className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor={template.id} className="font-medium text-gray-900 cursor-pointer">
+                              {template.name || 'Unnamed Template'}
+                            </Label>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {template.subject || 'No subject'}
+                            </div>
+                            <div className="text-sm text-gray-400 mt-1">
+                              Aangemaakt: {new Date(template.created_at || new Date()).toLocaleDateString()}
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePreview(template.id)}
-                          >
-                            Preview
-                          </Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </RadioGroup>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Planning */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Planning</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Selecteer datum</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal mt-1",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : "Selecteer een datum"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => {
-                        setSelectedDate(date);
-                        if (date && selectedTime) {
-                          const [hours, minutes] = selectedTime.split(':');
-                          const scheduledDate = new Date(date);
-                          scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                          setScheduleAt(scheduledDate.toISOString());
-                        }
-                      }}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              
-              <div>
-                <Label htmlFor="time">Selecteer tijd</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={selectedTime}
-                  onChange={(e) => {
-                    setSelectedTime(e.target.value);
-                    if (selectedDate && e.target.value) {
-                      const [hours, minutes] = e.target.value.split(':');
-                      const scheduledDate = new Date(selectedDate);
-                      scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                      setScheduleAt(scheduledDate.toISOString());
-                    }
-                  }}
-                  className="mt-1"
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Action buttons */}
         <div className="flex justify-between">
-          <Button variant="outline" onClick={navigateBack}>
-            Annuleren
+          <Button variant="outline" onClick={handleBack}>
+            Terug naar campaigns
           </Button>
           <Button 
             className={cn(
               "bg-blue-600 hover:bg-blue-700",
-              !canProceed && "opacity-50 cursor-not-allowed"
+              !selectedTemplate && "opacity-50 cursor-not-allowed"
             )}
             onClick={handleNext}
-            disabled={!canProceed}
+            disabled={!selectedTemplate}
           >
             Volgende stap
           </Button>

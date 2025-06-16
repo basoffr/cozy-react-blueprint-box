@@ -2,10 +2,14 @@
 import { NewSequenceBuilder } from '@/components/sequence-builder/NewSequenceBuilder';
 import { useParams } from 'react-router-dom';
 
-const SequenceBuilder = () => {
-  const { id } = useParams();
+interface SequenceBuilderProps {
+  mode: 'create' | 'edit';
+}
+
+const SequenceBuilder = ({ mode }: SequenceBuilderProps) => {
+  const { templateId } = useParams();
   
-  return <NewSequenceBuilder campaignId={id} />;
+  return <NewSequenceBuilder mode={mode} templateId={templateId} />;
 };
 
 export default SequenceBuilder;

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { NewCampaignProvider } from "@/contexts/NewCampaignContext";
 import { AuthProvider } from "@/contexts/AuthProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -20,7 +20,7 @@ import CampaignLeadSelection from "./pages/CampaignLeadSelection";
 import CampaignConfirmation from "./pages/CampaignConfirmation";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
-import SequenceEditor from "./components/sequence/SequenceEditor";
+import SequenceBuilder from "./pages/SequenceBuilder";
 
 const queryClient = new QueryClient();
 
@@ -84,15 +84,19 @@ const App = () => (
                   <Templates />
                 </ProtectedRoute>
               } />
-              <Route path="/templates/:id/sequence" element={
-                <ProtectedRoute>
-                  <SequenceEditor />
-                </ProtectedRoute>
-              } />
               <Route path="/templates/new/sequence" element={
                 <ProtectedRoute>
-                  <SequenceEditor />
+                  <SequenceBuilder mode="create" />
                 </ProtectedRoute>
+              } />
+              <Route path="/templates/:templateId/sequence" element={
+                <ProtectedRoute>
+                  <SequenceBuilder mode="edit" />
+                </ProtectedRoute>
+              } />
+              {/* Redirect old sequence builder URLs */}
+              <Route path="/sequence-builder/:id" element={
+                <Navigate to="/templates/:id/sequence" replace />
               } />
               <Route path="/leads" element={
                 <ProtectedRoute>
