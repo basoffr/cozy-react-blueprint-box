@@ -13,6 +13,22 @@ import { useSequenceData } from '@/hooks/useSequenceData';
 import { useSequenceOperations } from '@/hooks/useSequenceOperations';
 import { PerformanceMonitor, ProfiledComponent } from '@/utils/performance';
 
+interface SequenceData {
+  steps: SequenceStep[];
+}
+
+interface Sender {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  subject: string;
+}
+
 const SequenceEditorContent = () => {
   const { id } = useParams<{ id: string }>();
   const { state, setSteps, reorderSteps, selectStep, updateStep } = useSequence();
@@ -64,8 +80,8 @@ const SequenceEditorContent = () => {
         position: { x: 0, y: 0 },
       };
       setSteps([initialStep]);
-    } else if (existingSequence?.steps?.length > 0) {
-      setSteps(existingSequence.steps);
+    } else if ((existingSequence as SequenceData)?.steps?.length > 0) {
+      setSteps((existingSequence as SequenceData).steps);
     } else if (template && state.steps.length === 0) {
       // Create initial step with the template
       const initialStep: SequenceStep = {
@@ -185,15 +201,15 @@ const SequenceEditorContent = () => {
               onDragEnd={handleDragEnd}
               onStepSelect={handleStepSelect}
               onAddEmailStep={handleAddEmailStep}
-              senders={senders || []}
-              templates={templates || []}
+              senders={(senders as Sender[]) || []}
+              templates={(templates as Template[]) || []}
             />
 
             {isConfigPanelOpen && selectedStep && (
               <VirtualizedStepConfig
                 step={selectedStep}
-                senders={senders || []}
-                templates={templates || []}
+                senders={(senders as Sender[]) || []}
+                templates={(templates as Template[]) || []}
                 onClose={() => {
                   setIsConfigPanelOpen(false);
                   setSelectedStepId(null);

@@ -11,6 +11,12 @@ import { toast } from "@/components/ui/sonner";
 import { format } from "date-fns";
 import { apiRequest } from "@/api/api";
 
+interface Template {
+  id: string;
+  name: string;
+  subject: string;
+}
+
 export const CampaignConfirmationContent = () => {
   const navigate = useNavigate();
   const { templateId, listId, scheduleAt, reset } = useNewCampaign();
@@ -18,7 +24,7 @@ export const CampaignConfirmationContent = () => {
 
   const { data: templates } = useQuery({
     queryKey: ['templates'],
-    queryFn: () => apiRequest('/templates'),
+    queryFn: () => apiRequest('/templates') as Promise<Template[]>,
   });
 
   const { data: leadLists } = useQuery({
@@ -26,7 +32,7 @@ export const CampaignConfirmationContent = () => {
     queryFn: leadsApi.getLists,
   });
 
-  const selectedTemplate = templates?.find((t: any) => t.id === templateId);
+  const selectedTemplate = templates?.find((t: Template) => t.id === templateId);
   const selectedList = leadLists?.find((l: any) => l.id.toString() === listId);
 
   const handleCreateCampaign = async () => {
