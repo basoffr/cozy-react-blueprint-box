@@ -21,16 +21,22 @@ export class PerformanceMonitor {
   static measureRender<T extends React.ComponentType<any>>(
     Component: T,
     name: string
-  ): T {
-    return React.memo(React.forwardRef<any, React.ComponentProps<T>>((props, ref) => {
-      PerformanceMonitor.startMeasurement(name);
-      
-      React.useEffect(() => {
-        PerformanceMonitor.endMeasurement(name);
-      });
+  ): React.FC<React.ComponentProps<T>> {
+    // Create a proper wrapper component that follows React rules
+    const WrappedComponent = React.forwardRef<unknown, React.ComponentProps<T>>((props, ref) => {
+      // Use layout effect to measure performance as soon as possible
+      React.useLayoutEffect(() => {
+        PerformanceMonitor.startMeasurement(name);
+        return () => {
+          PerformanceMonitor.endMeasurement(name);
+        };
+      }, []);
       
       return React.createElement(Component, { ...props, ref });
-    })) as T;
+    });
+    
+    WrappedComponent.displayName = `Measured(${name})`;
+    return React.memo(WrappedComponent) as React.FC<React.ComponentProps<T>>;
   }
   
   static logPageLoad(pageName: string) {
