@@ -229,7 +229,8 @@ export const StepConfigPanel: React.FC<StepConfigPanelProps> = ({
                           <span className="text-sm font-semibold text-blue-600">{percentage}%</span>
                         </div>
                         <Slider
-                          value={[step.distribution?.[index] || 50]}
+                          // keep input controlled: always non-undefined value
+                          value={[step.distribution?.[index] ?? 50]}
                           onValueChange={(value) => handleDistributionChange(index, value)}
                           max={100}
                           step={5}

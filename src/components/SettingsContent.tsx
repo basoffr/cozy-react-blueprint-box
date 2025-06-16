@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Bell, UserRound, Trash2, Plus, Edit, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { sendersApi, settingsApi } from "@/services/api";
 import { toast } from "@/components/ui/sonner";
+import { apiRequest } from "@/api/api";
 
 interface Sender {
   id: string;
@@ -55,28 +55,24 @@ export function SettingsContent() {
   // Update settings when data is fetched
   useEffect(() => {
     if (settingsData) {
-      setSettings(settingsData);
+      // Ensure all form fields have non-undefined values
+      setSettings({
+        emailSignature: settingsData.emailSignature ?? "",
+        defaultFromName: settingsData.defaultFromName ?? "",
+        replyToEmail: settingsData.replyToEmail ?? "",
+        trackOpens: settingsData.trackOpens ?? true,
+        trackClicks: settingsData.trackClicks ?? true,
+      });
     }
   }, [settingsData]);
 
   // Add sender mutation
   const addSenderMutation = useMutation({
     mutationFn: async (senderData: { name: string; email: string; avatarUrl?: string }) => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders`, {
+      return apiRequest('/senders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
         body: JSON.stringify(senderData),
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['senders'] });
@@ -96,21 +92,10 @@ export function SettingsContent() {
   // Update sender mutation
   const updateSenderMutation = useMutation({
     mutationFn: async ({ id, ...senderData }: Sender) => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders/${id}`, {
+      return apiRequest(`/senders/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
         body: JSON.stringify(senderData),
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['senders'] });
@@ -129,19 +114,9 @@ export function SettingsContent() {
   // Delete sender mutation
   const deleteSenderMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://api.mydomain.com'}/api/senders/${id}`, {
+      return apiRequest(`/senders/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-      
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['senders'] });
@@ -319,7 +294,12 @@ export function SettingsContent() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setEditingSender(sender)}
+                          onClick={() => setEditingSender({
+                            id: sender.id,
+                            name: sender.name ?? "",
+                            email: sender.email ?? "",
+                            avatarUrl: sender.avatarUrl ?? ""
+                          })}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -351,7 +331,7 @@ export function SettingsContent() {
                               <Label htmlFor="edit-sender-avatar">Avatar URL</Label>
                               <Input
                                 id="edit-sender-avatar"
-                                value={editingSender.avatarUrl || ''}
+                                value={editingSender.avatarUrl ?? ''}
                                 onChange={(e) => setEditingSender({ ...editingSender, avatarUrl: e.target.value })}
                               />
                             </div>

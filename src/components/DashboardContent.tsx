@@ -37,19 +37,23 @@ export function DashboardContent() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <StatsCard 
           title="Total leads" 
-          value={isLoading ? "..." : (stats?.total_leads?.toString() || "0")} 
+          // keep input controlled: always non-undefined value
+          value={isLoading ? "..." : ((stats?.total_leads ?? 0).toString())} 
         />
         <StatsCard 
           title="E-mails verzonden" 
-          value={isLoading ? "..." : (stats?.emails_sent?.toString() || "0")} 
+          // keep input controlled: always non-undefined value
+          value={isLoading ? "..." : ((stats?.emails_sent ?? 0).toString())} 
         />
         <StatsCard 
           title="Opens" 
-          value={isLoading ? "..." : (stats?.opens?.toString() || "0")} 
+          // keep input controlled: always non-undefined value
+          value={isLoading ? "..." : ((stats?.opens ?? 0).toString())} 
         />
         <StatsCard 
           title="Replies" 
-          value={isLoading ? "..." : (stats?.replies?.toString() || "0")} 
+          // keep input controlled: always non-undefined value
+          value={isLoading ? "..." : ((stats?.replies ?? 0).toString())} 
         />
       </div>
 

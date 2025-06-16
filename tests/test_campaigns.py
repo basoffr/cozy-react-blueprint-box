@@ -230,3 +230,34 @@ def test_delete_campaign_ok(client, mock_supabase):
     mock_supabase.table.assert_called_once_with("campaigns")
     mock_table.delete.assert_called_once()
     mock_delete.eq.assert_called_once_with("id", "1")
+
+
+def test_list_campaigns_dev_ok(client, mock_supabase):
+    """Test listing campaigns in development mode returns 200 and empty list"""
+    # Configure mock response for empty campaigns list
+    mock_data = []
+    
+    # Setup mock chain without eq() call since we're testing dev mode
+    mock_execute = MagicMock()
+    mock_execute.data = mock_data
+    mock_order = MagicMock()
+    mock_order.execute.return_value = mock_execute
+    mock_select = MagicMock()
+    mock_select.order.return_value = mock_order
+    mock_table = MagicMock()
+    mock_table.select.return_value = mock_select
+    mock_supabase.table.return_value = mock_table
+    
+    # Make request with dev API key
+    response = client.get('/campaigns', headers={"X-API-Key": "dev-secret"})
+    
+    # Assertions
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert isinstance(json_data, list)
+    assert len(json_data) == 0  # Empty list
+    
+    # Verify mock calls - should not call eq() in dev mode
+    mock_supabase.table.assert_called_once_with("campaigns")
+    mock_table.select.assert_called_once_with("*")
+    mock_select.order.assert_called_once_with("created_at", desc=True)

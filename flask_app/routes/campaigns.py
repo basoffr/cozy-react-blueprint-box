@@ -27,12 +27,16 @@ def list_campaigns():
         # Get Supabase client
         supabase = create_supabase_client()
         
-        # Query campaigns table filtering by owner (current user)
-        response = supabase.table("campaigns") \
-            .select("*") \
-            .eq("owner", g.user_id) \
-            .order("created_at", desc=True) \
-            .execute()
+        # Query campaigns table
+        query = supabase.table("campaigns").select("*")
+        
+        # In production, filter by owner (current user)
+        # In development, don't filter by owner since RLS is disabled with service role
+        if current_app.env != "development":
+            query = query.eq("owner", g.user_id)
+            
+        # Order by created_at and execute
+        response = query.order("created_at", desc=True).execute()
             
         # Return campaigns as JSON array
         return jsonify(response.data), 200

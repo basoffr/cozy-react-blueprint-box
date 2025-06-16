@@ -4,6 +4,9 @@ from functools import wraps
 from flask import request, jsonify, g, current_app
 from supabase import create_client, Client
 
+# Valid UUID for development mode
+DEV_USER_ID = "00000000-0000-0000-0000-000000000000"
+
 # Fallback to PyJWT if needed
 try:
     import jwt
@@ -113,8 +116,8 @@ def require_user(f):
         if current_app.env == "development" and dev_api_key:
             dev_key = os.getenv("DEV_API_KEY", "dev-secret")
             if dev_api_key == dev_key:
-                # For development, set a mock user ID
-                g.user_id = "dev-user-id"
+                # For development, set a valid UUID as mock user ID
+                g.user_id = DEV_USER_ID
                 return f(*args, **kwargs)
         
         # Check for Bearer token

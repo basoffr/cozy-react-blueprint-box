@@ -2,6 +2,16 @@
 import { Bell, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Lead, LeadListResponse } from "@/types/api";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,22 +44,27 @@ export function LeadsContent() {
   const { visibleColumns, availableColumns } = useVisibleColumns();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [appliedFilters, setAppliedFilters] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
 
-  const { data: leads, isLoading, refetch } = useQuery({
-    queryKey: ['leads', appliedFilters],
-    queryFn: () => leadsApi.getAll(),
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['leads', appliedFilters, currentPage, pageSize],
+    queryFn: () => leadsApi.getAll(currentPage, pageSize),
   });
+  
+  // Extract leads from the paginated response
+  const leads = data?.items ?? [];
 
   const handleSelectAll = (type: 'page' | 'all') => {
-    if (type === 'page' && leads) {
-      const pageIds = leads.map((lead: any) => lead.id);
+    if (type === 'page' && leads.length > 0) {
+      const pageIds = leads.map((lead: Lead) => lead.id);
       setSelectedLeads(prev => 
         pageIds.every(id => prev.includes(id)) 
           ? prev.filter(id => !pageIds.includes(id))
           : [...new Set([...prev, ...pageIds])]
       );
-    } else if (type === 'all' && leads) {
-      const allIds = leads.map((lead: any) => lead.id);
+    } else if (type === 'all' && leads.length > 0) {
+      const allIds = leads.map((lead: Lead) => lead.id);
       setSelectedLeads(allIds);
     }
   };
@@ -76,7 +91,7 @@ export function LeadsContent() {
     }
   };
 
-  const renderCellContent = (lead: any, columnKey: string) => {
+  const renderCellContent = (lead: Lead, columnKey: string) => {
     switch (columnKey) {
       case 'email':
         return <span className="font-medium">{lead.email}</span>;
@@ -109,11 +124,11 @@ export function LeadsContent() {
     visibleColumns.includes(col.key)
   );
 
-  const isAllPageSelected = leads?.length > 0 && leads.every((lead: any) => 
+  const isAllPageSelected = leads.length > 0 && leads.every((lead: Lead) => 
     selectedLeads.includes(lead.id)
   );
 
-  const isSomePageSelected = leads?.some((lead: any) => 
+  const isSomePageSelected = leads.some((lead: Lead) => 
     selectedLeads.includes(lead.id)
   );
 
@@ -213,14 +228,14 @@ export function LeadsContent() {
                     </TableCell>
                   </TableRow>
                 ))
-              ) : leads?.length === 0 ? (
+              ) : leads.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={visibleColumnConfigs.length + 2} className="text-center py-8">
                     Geen leads gevonden
                   </TableCell>
                 </TableRow>
               ) : (
-                leads?.map((lead: any) => (
+                leads.map((lead: Lead) => (
                   <TableRow key={lead.id}>
                     <TableCell>
                       <Checkbox
@@ -243,14 +258,104 @@ export function LeadsContent() {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+            
+            {/* Pagination UI */}
+            {data && data.total > 0 && (
+              <div className="mt-4 flex items-center justify-between px-2">
+                <div className="text-sm text-muted-foreground">
+                  Toont {(data.page - 1) * data.size + 1} tot {Math.min(data.page * data.size, data.total)} van {data.total} leads
+                </div>
+                
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={data.page <= 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    
+                    {/* First page */}
+                    <PaginationItem>
+                      <PaginationLink 
+                        isActive={data.page === 1}
+                        onClick={() => setCurrentPage(1)}
+                      >
+                        1
+                      </PaginationLink>
+                    </PaginationItem>
+                    
+                    {/* Show ellipsis if needed */}
+                    {data.page > 3 && (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )}
+                    
+                    {/* Page before current if not first or second */}
+                    {data.page > 2 && (
+                      <PaginationItem>
+                        <PaginationLink onClick={() => setCurrentPage(data.page - 1)}>
+                          {data.page - 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )}
+                    
+                    {/* Current page if not first */}
+                    {data.page > 1 && data.page < Math.ceil(data.total / data.size) && (
+                      <PaginationItem>
+                        <PaginationLink isActive={true}>
+                          {data.page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )}
+                    
+                    {/* Page after current if not last or second-to-last */}
+                    {data.page < Math.ceil(data.total / data.size) - 1 && (
+                      <PaginationItem>
+                        <PaginationLink onClick={() => setCurrentPage(data.page + 1)}>
+                          {data.page + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )}
+                    
+                    {/* Show ellipsis if needed */}
+                    {data.page < Math.ceil(data.total / data.size) - 2 && (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )}
+                    
+                    {/* Last page if not first page */}
+                    {Math.ceil(data.total / data.size) > 1 && (
+                      <PaginationItem>
+                        <PaginationLink 
+                          isActive={data.page === Math.ceil(data.total / data.size)}
+                          onClick={() => setCurrentPage(Math.ceil(data.total / data.size))}
+                        >
+                          {Math.ceil(data.total / data.size)}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(p => Math.min(Math.ceil(data.total / data.size), p + 1))}
+                        className={data.page >= Math.ceil(data.total / data.size) ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      <BulkSelectToolbar
-        selectedCount={selectedLeads.length}
-        onDelete={handleBulkDelete}
-        onClear={() => setSelectedLeads([])}
-      />
-    </div>
-  );
-}
+        <BulkSelectToolbar
+          selectedCount={selectedLeads.length}
+          onDelete={handleBulkDelete}
+          onClear={() => setSelectedLeads([])}
+        />
+      </div>
+    );
+  }

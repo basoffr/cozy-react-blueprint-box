@@ -1,29 +1,16 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { sendersApi } from '@/services/api';
+import { apiRequest } from '@/api/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.mydomain.com';
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+// Using centralized apiRequest which handles auth headers
 
 export const useSequenceData = (id: string | undefined) => {
   // Fetch template data
   const templateQuery = useQuery({
     queryKey: ['template', id],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/templates/${id}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.json();
+      return apiRequest(`/templates/${id}`);
     },
     enabled: !!id,
   });
@@ -38,16 +25,7 @@ export const useSequenceData = (id: string | undefined) => {
   const templatesQuery = useQuery({
     queryKey: ['email-templates'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/templates?type=email`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.json();
+      return apiRequest(`/templates?type=email`);
     },
   });
 
@@ -55,19 +33,15 @@ export const useSequenceData = (id: string | undefined) => {
   const sequenceQuery = useQuery({
     queryKey: ['sequence', id],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/templates/${id}/sequence`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-      });
-      if (!response.ok) {
-        if (response.status === 404) {
+      try {
+        return await apiRequest(`/templates/${id}/sequence`);
+      } catch (error) {
+        // Handle 404 case for sequences that don't exist yet
+        if (error instanceof Error && error.message.includes('404')) {
           return { steps: [] };
         }
-        throw new Error(`HTTP ${response.status}`);
+        throw error;
       }
-      return response.json();
     },
     enabled: !!id,
   });

@@ -1,6 +1,6 @@
-
 import { toast } from "@/components/ui/sonner";
 import { apiRequest as baseApiRequest, getAuthHeaders } from "@/api/api";
+import { LeadListResponse, TemplateListResponse } from '@/types/api';
 
 const handleApiError = (error: any) => {
   console.error('API Error:', error);
@@ -9,7 +9,7 @@ const handleApiError = (error: any) => {
   throw error;
 };
 
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const config = {
     ...options,
     headers: {
@@ -20,8 +20,9 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   };
 
   try {
-    const response = await baseApiRequest(endpoint, config);
-    return await response.json();
+    // already JSON, do not call .json()
+    const response = await baseApiRequest<T>(endpoint, config);
+    return response;
   } catch (error) {
     handleApiError(error);
   }
@@ -44,7 +45,8 @@ export const campaignsApi = {
 
 // Templates API
 export const templatesApi = {
-  getAll: () => apiRequest('/templates/'),
+  getAll: (page: number = 1, size: number = 50): Promise<TemplateListResponse> =>
+    apiRequest<TemplateListResponse>(`/templates/?page=${page}&size=${size}`),
   getEmailTemplates: () => apiRequest('/templates/?type=email'),
   getById: (id: string) => apiRequest(`/templates/${id}/`),
   preview: (id: string) => apiRequest(`/templates/${id}/preview/`, { method: 'POST' }),
@@ -63,8 +65,8 @@ export const sendersApi = {
 
 // Leads API
 export const leadsApi = {
-  getAll: (page: number = 1, size: number = 50) =>
-    apiRequest(`/leads/?page=${page}&size=${size}`),
+  getAll: (page: number = 1, size: number = 50): Promise<LeadListResponse> =>
+    apiRequest<LeadListResponse>(`/leads/?page=${page}&size=${size}`),
   getLists: () => apiRequest('/leads/lists/'),
   import: (file: File, listName?: string) => {
     const formData = new FormData();
@@ -78,8 +80,9 @@ export const leadsApi = {
       method: 'POST',
       headers: getAuthHeaders(),
       body: formData,
-    }).then(async (response) => {
-      return response.json();
+    }).then((response) => {
+      // already JSON, do not call .json()
+      return response;
     }).catch(handleApiError);
   },
 };

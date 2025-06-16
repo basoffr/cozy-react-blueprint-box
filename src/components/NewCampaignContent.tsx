@@ -30,10 +30,13 @@ export const NewCampaignContent = () => {
     scheduleAt ? format(new Date(scheduleAt), "HH:mm") : "09:00"
   );
 
-  const { data: templates, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['templates'],
-    queryFn: templatesApi.getAll,
+    queryFn: () => templatesApi.getAll(),
   });
+  
+  // Safely extract templates array from response
+  const templates = data?.items ?? [];
 
   const handlePreview = async (templateId: string) => {
     try {
@@ -137,16 +140,33 @@ export const NewCampaignContent = () => {
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-4">Loading templates...</div>
+              ) : templates.length === 0 ? (
+                <div className="text-center py-4">No templates available</div>
               ) : (
-                <RadioGroup value={selectedTemplate} onValueChange={handleTemplateSelect}>
+                <RadioGroup
+                  value={selectedTemplate}
+                  onValueChange={handleTemplateSelect}
+                  className="space-y-2"
+                >
                   <div className="space-y-4">
-                    {templates?.map((template: any) => (
-                      <div key={template.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
+                    {templates.map((template) => (
+                      <div
+                        key={template.id}
+                        className={cn(
+                          "border rounded-lg p-4 transition-all",
+                          selectedTemplate === template.id
+                            ? "border-blue-600 bg-blue-50"
+                            : "hover:border-gray-400"
+                        )}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-start space-x-3">
                             <RadioGroupItem value={template.id} id={template.id} />
                             <div>
-                              <Label htmlFor={template.id} className="font-medium cursor-pointer">
+                              <Label
+                                htmlFor={template.id}
+                                className="text-base font-medium cursor-pointer"
+                              >
                                 {template.name}
                               </Label>
                               <div className="text-sm text-gray-500 mt-1">{template.subject}</div>

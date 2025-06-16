@@ -3,9 +3,14 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from .routes.campaigns import campaigns_bp
+from .routes.leads import leads_bp
+from .routes.senders import senders_bp
+from .routes.settings import settings_bp
 
-# Load environment variables from .env file
-load_dotenv()
+from pathlib import Path
+# laad altijd het .env-bestand in project-root
+ROOT_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT_DIR / ".env")
 
 # Get the development API key
 DEV_KEY = os.getenv("DEV_API_KEY", "dev-secret")
@@ -15,14 +20,10 @@ def create_app():
     app.env = os.getenv("FLASK_ENV", "development")
     
     # Configure CORS
-    CORS(app, origins=[
-        "http://127.0.0.1:5173"
-    ], supports_credentials=True)
-    
-    # You can override these origins in production with an environment variable
-    # Example usage:
-    # allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'https://app.mydomain.com').split(',')
-    # CORS(app, origins=allowed_origins, supports_credentials=True)
+    # Get allowed origins from environment variable or use default development origins
+    default_origins = "http://127.0.0.1:5173,http://localhost:5173"
+    allowed_origins = os.getenv('ALLOWED_ORIGINS', default_origins).split(',')
+    CORS(app, origins=allowed_origins, supports_credentials=True)
     
     @app.before_request
     def dev_api_key_bypass():
@@ -110,6 +111,9 @@ def create_app():
     app.register_blueprint(campaigns_bp)
     from .routes.email_webhooks import email_webhooks_bp
     app.register_blueprint(email_webhooks_bp)
+    app.register_blueprint(leads_bp)
+    app.register_blueprint(senders_bp)
+    app.register_blueprint(settings_bp)
     
     return app
 

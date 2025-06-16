@@ -4,13 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from '@/components/ui/sonner';
 import { SequenceStep, useSequence } from '@/contexts/SequenceContext';
+import { apiRequest } from '@/api/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.mydomain.com';
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+// Using centralized apiRequest which handles auth headers
 
 export const useSequenceOperations = (id: string | undefined, isNewTemplate: boolean, templateName: string) => {
   const navigate = useNavigate();
@@ -55,58 +51,25 @@ export const useSequenceOperations = (id: string | undefined, isNewTemplate: boo
           throw new Error('Template name is required');
         }
 
-        const createTemplateResponse = await fetch(`${API_BASE_URL}/api/templates`, {
+        const newTemplate = await apiRequest<{ id: string }>('/templates', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
           body: JSON.stringify({ 
             name: templateName,
             type: 'sequence',
           }),
         });
-
-        if (!createTemplateResponse.ok) {
-          const errorData = await createTemplateResponse.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP ${createTemplateResponse.status}`);
-        }
-
-        const newTemplate = await createTemplateResponse.json();
         
         // Now save the sequence with the new template ID
-        const saveSequenceResponse = await fetch(`${API_BASE_URL}/api/templates/${newTemplate.id}/sequence`, {
+        return apiRequest(`/templates/${newTemplate.id}/sequence`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
           body: JSON.stringify({ steps }),
         });
-
-        if (!saveSequenceResponse.ok) {
-          const errorData = await saveSequenceResponse.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP ${saveSequenceResponse.status}`);
-        }
-
-        return saveSequenceResponse.json();
       } else {
         // Update existing template sequence
-        const response = await fetch(`${API_BASE_URL}/api/templates/${id}/sequence`, {
+        return apiRequest(`/templates/${id}/sequence`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
           body: JSON.stringify({ steps }),
         });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP ${response.status}`);
-        }
-
-        return response.json();
       }
     },
     onSuccess: () => {
