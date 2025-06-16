@@ -44,10 +44,43 @@ const initialState: SequenceBuilderState = {
   isLoading: false,
 };
 
+function validateStep(step: SequenceStep): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (step.type === 'email') {
+    if (!step.subject?.trim()) {
+      errors.push('Subject is required');
+    }
+    if (!step.body?.trim()) {
+      errors.push('Body content is required');
+    }
+    if (!step.senderId) {
+      errors.push('Sender is required');
+    }
+  }
+  
+  if (step.type === 'wait') {
+    if (!step.waitDays || step.waitDays < 1) {
+      errors.push('Wait time must be at least 1 day');
+    }
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
 function sequenceBuilderReducer(state: SequenceBuilderState, action: SequenceBuilderAction): SequenceBuilderState {
   switch (action.type) {
-    case 'SET_STEPS':
-      return { ...state, steps: action.payload };
+    case 'SET_STEPS': {
+      // Validate all steps when setting
+      const validatedSteps = action.payload.map(step => {
+        const validation = validateStep(step);
+        return { ...step, ...validation };
+      });
+      return { ...state, steps: validatedSteps };
+    }
     
     case 'ADD_STEP': {
       const newStep: SequenceStep = {
@@ -57,12 +90,14 @@ function sequenceBuilderReducer(state: SequenceBuilderState, action: SequenceBui
         ...(action.payload.stepType === 'email' && {
           subject: '',
           body: '',
+          senderId: '',
           isValid: false,
           errors: ['Content is required']
         }),
         ...(action.payload.stepType === 'wait' && {
           waitDays: 1,
-          isValid: true
+          isValid: true,
+          errors: []
         })
       };
       
@@ -88,12 +123,8 @@ function sequenceBuilderReducer(state: SequenceBuilderState, action: SequenceBui
       const updatedSteps = state.steps.map(step => {
         if (step.id === action.payload.id) {
           const updated = { ...step, ...action.payload.updates };
-          // Validate email steps
-          if (updated.type === 'email') {
-            updated.isValid = !!(updated.subject && updated.body);
-            updated.errors = updated.isValid ? [] : ['Content is required'];
-          }
-          return updated;
+          const validation = validateStep(updated);
+          return { ...updated, ...validation };
         }
         return step;
       });

@@ -7,6 +7,7 @@ import { SequenceCanvas } from './SequenceCanvas';
 import { InspectorPanel } from './InspectorPanel';
 import { templatesApi } from '@/services/templatesApi';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getEmptySequence } from '@/utils/sequenceHelpers';
 
 interface NewSequenceBuilderProps {
   mode: 'create' | 'edit';
@@ -37,18 +38,7 @@ function SequenceBuilderContent({ mode, templateId }: NewSequenceBuilderProps) {
   useEffect(() => {
     if (mode === 'create') {
       // Create empty sequence for new template
-      const emptySequence = [
-        {
-          id: 'step-1',
-          type: 'email' as const,
-          position: 0,
-          subject: '',
-          body: '',
-          senderId: '',
-          isValid: false,
-          errors: ['Content is required']
-        }
-      ];
+      const emptySequence = getEmptySequence();
       setSteps(emptySequence);
     } else if (mode === 'edit' && sequence?.steps) {
       // Load existing sequence steps

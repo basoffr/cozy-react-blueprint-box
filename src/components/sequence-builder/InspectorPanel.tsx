@@ -13,7 +13,7 @@ export function InspectorPanel() {
 
   return (
     <AnimatePresence>
-      {selectedStep && (
+      {selectedStep ? (
         <motion.div
           initial={{ x: 320, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -40,6 +40,23 @@ export function InspectorPanel() {
           <div className="flex-1 overflow-auto">
             {selectedStep.type === 'email' && <EmailInspector step={selectedStep} />}
             {selectedStep.type === 'wait' && <WaitInspector step={selectedStep} />}
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ x: 320, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 320, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="w-80 bg-slate-700 border-l border-slate-600 flex flex-col"
+        >
+          <div className="flex items-center justify-center p-8 text-center">
+            <div className="space-y-4">
+              <div className="text-slate-400 text-lg font-medium">No step selected</div>
+              <p className="text-slate-500 text-sm">
+                Click on a step in the sequence to edit its settings
+              </p>
+            </div>
           </div>
         </motion.div>
       )}

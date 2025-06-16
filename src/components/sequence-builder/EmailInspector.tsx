@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, X } from 'lucide-react';
 import { useSequenceBuilder, SequenceStep } from '@/contexts/SequenceBuilderContext';
-import { useDebounce } from 'use-debounce';
+import { sendersApi } from '@/services/api';
 
 interface EmailInspectorProps {
   step: SequenceStep;
@@ -20,12 +21,11 @@ export function EmailInspector({ step }: EmailInspectorProps) {
   const [showCc, setShowCc] = useState(false);
   const [newCcEmail, setNewCcEmail] = useState('');
 
-  // Mock senders data - replace with actual data from API
-  const senders = [
-    { id: '1', name: 'John Doe', email: 'john@company.com' },
-    { id: '2', name: 'Jane Smith', email: 'jane@company.com' },
-    { id: '3', name: 'Support Team', email: 'support@company.com' },
-  ];
+  // Fetch senders data
+  const { data: senders = [] } = useQuery({
+    queryKey: ['senders'],
+    queryFn: sendersApi.getAll,
+  });
 
   const mergeTagOptions = [
     '{{firstName}}',
@@ -83,7 +83,7 @@ export function EmailInspector({ step }: EmailInspectorProps) {
             <SelectValue placeholder="Select sender" />
           </SelectTrigger>
           <SelectContent className="bg-slate-600 border-slate-500">
-            {senders.map(sender => (
+            {senders.map((sender: any) => (
               <SelectItem key={sender.id} value={sender.id} className="text-white">
                 {sender.name} ({sender.email})
               </SelectItem>
