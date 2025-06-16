@@ -82,13 +82,13 @@ const SequenceEditorContent = () => {
       setSteps([initialStep]);
     } else if ((existingSequence as SequenceData)?.steps?.length > 0) {
       setSteps((existingSequence as SequenceData).steps);
-    } else if (template && state.steps.length === 0) {
+    } else if ((template as Template) && state.steps.length === 0) {
       // Create initial step with the template
       const initialStep: SequenceStep = {
         id: 'initial',
         type: 'email',
         senders: [],
-        templateIds: [template.id],
+        templateIds: [(template as Template).id],
         position: { x: 0, y: 0 },
       };
       setSteps([initialStep]);
