@@ -1,5 +1,5 @@
 
-import { Home, Send, Users, FileText, BarChart3, Settings, ChevronLeft } from "lucide-react";
+import { Home, Send, Users, FileText, BarChart3, Settings, ChevronLeft, Inbox } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +38,12 @@ const navigationItems = [
     icon: FileText,
     url: "/templates",
     ariaLabel: "Templates"
+  },
+  {
+    title: "Inbox",
+    icon: Inbox,
+    url: "/inbox",
+    ariaLabel: "Inbox"
   },
   {
     title: "Statistics",

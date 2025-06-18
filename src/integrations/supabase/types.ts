@@ -140,6 +140,48 @@ export type Database = {
           },
         ]
       }
+      inbox_emails: {
+        Row: {
+          body_preview: string | null
+          created_at: string
+          full_body: string | null
+          id: string
+          is_read: boolean
+          owner: string
+          received_at: string
+          recipient_email: string
+          sender_email: string
+          sender_name: string | null
+          subject: string
+        }
+        Insert: {
+          body_preview?: string | null
+          created_at?: string
+          full_body?: string | null
+          id?: string
+          is_read?: boolean
+          owner: string
+          received_at?: string
+          recipient_email: string
+          sender_email: string
+          sender_name?: string | null
+          subject: string
+        }
+        Update: {
+          body_preview?: string | null
+          created_at?: string
+          full_body?: string | null
+          id?: string
+          is_read?: boolean
+          owner?: string
+          received_at?: string
+          recipient_email?: string
+          sender_email?: string
+          sender_name?: string | null
+          subject?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           bedrijf: string | null

@@ -21,6 +21,7 @@ import CampaignConfirmation from "./pages/CampaignConfirmation";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import SequenceBuilder from "./pages/SequenceBuilder";
+import Inbox from "./pages/Inbox";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,11 @@ const App = () => (
               <Route path="/campaigns/new/confirm" element={
                 <ProtectedRoute>
                   <CampaignConfirmation />
+                </ProtectedRoute>
+              } />
+              <Route path="/inbox" element={
+                <ProtectedRoute>
+                  <Inbox />
                 </ProtectedRoute>
               } />
               <Route path="/settings" element={
