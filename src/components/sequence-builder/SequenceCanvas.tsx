@@ -10,11 +10,20 @@ export function SequenceCanvas() {
   const { state, handleDragEnd } = useSequenceBuilder();
   
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  console.log('SequenceCanvas render:', { 
+    stepsCount: state.steps.length, 
+    selectedStepId: state.selectedStepId 
+  });
 
   return (
     <div className="flex-1 bg-slate-800 relative overflow-auto">
@@ -48,12 +57,14 @@ export function SequenceCanvas() {
               items={state.steps.map(step => step.id)} 
               strategy={verticalListSortingStrategy}
             >
-              {state.steps.map((step, index) => (
-                <div key={step.id} className="space-y-4">
-                  <SequenceStepCard step={step} />
-                  <AddStepButton position={index} />
-                </div>
-              ))}
+              {state.steps
+                .sort((a, b) => a.position - b.position)
+                .map((step, index) => (
+                  <div key={step.id} className="space-y-4">
+                    <SequenceStepCard step={step} />
+                    <AddStepButton position={index} />
+                  </div>
+                ))}
             </SortableContext>
           </DndContext>
 

@@ -2,8 +2,13 @@
 import React, { useState } from 'react';
 import { Plus, Mail, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSequenceBuilder } from '@/contexts/SequenceBuilderContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface AddStepButtonProps {
   position: number;
@@ -11,46 +16,46 @@ interface AddStepButtonProps {
 
 export function AddStepButton({ position }: AddStepButtonProps) {
   const { addStep } = useSequenceBuilder();
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleAddStep = (stepType: 'email' | 'wait') => {
+    console.log('Adding step:', stepType, 'at position:', position);
     addStep(stepType, position);
-    setOpen(false);
+    setIsOpen(false);
   };
 
   return (
     <div className="flex justify-center">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 rounded-full bg-slate-600 hover:bg-slate-500 text-slate-300 hover:text-white border border-slate-500"
+            className="h-8 w-8 p-0 rounded-full bg-slate-600 hover:bg-slate-500 border border-slate-500 transition-all duration-200 hover:scale-110"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4 text-slate-300" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 bg-slate-700 border-slate-600" side="right">
-          <div className="space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-slate-200 hover:bg-slate-600"
-              onClick={() => handleAddStep('email')}
-            >
-              <Mail className="h-4 w-4 mr-2 text-green-500" />
-              Email
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-slate-200 hover:bg-slate-600"
-              onClick={() => handleAddStep('wait')}
-            >
-              <Clock className="h-4 w-4 mr-2 text-blue-500" />
-              Wait
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent 
+          align="center" 
+          className="bg-slate-700 border-slate-600 text-white"
+        >
+          <DropdownMenuItem 
+            onClick={() => handleAddStep('email')}
+            className="hover:bg-slate-600 cursor-pointer"
+          >
+            <Mail className="h-4 w-4 mr-2 text-green-500" />
+            Add Email
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => handleAddStep('wait')}
+            className="hover:bg-slate-600 cursor-pointer"
+          >
+            <Clock className="h-4 w-4 mr-2 text-blue-500" />
+            Add Wait
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
