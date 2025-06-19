@@ -140,6 +140,51 @@ export type Database = {
           },
         ]
       }
+      email_servers: {
+        Row: {
+          created_at: string
+          email_address: string
+          id: string
+          is_default: boolean
+          owner: string
+          password: string
+          pop_imap_server: string
+          smtp_port: number
+          smtp_server: string
+          updated_at: string
+          use_ssl: boolean
+          use_tls: boolean
+        }
+        Insert: {
+          created_at?: string
+          email_address: string
+          id?: string
+          is_default?: boolean
+          owner: string
+          password: string
+          pop_imap_server: string
+          smtp_port?: number
+          smtp_server: string
+          updated_at?: string
+          use_ssl?: boolean
+          use_tls?: boolean
+        }
+        Update: {
+          created_at?: string
+          email_address?: string
+          id?: string
+          is_default?: boolean
+          owner?: string
+          password?: string
+          pop_imap_server?: string
+          smtp_port?: number
+          smtp_server?: string
+          updated_at?: string
+          use_ssl?: boolean
+          use_tls?: boolean
+        }
+        Relationships: []
+      }
       inbox_emails: {
         Row: {
           body_preview: string | null
