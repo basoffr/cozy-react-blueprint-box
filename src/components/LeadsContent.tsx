@@ -37,6 +37,7 @@ import { useVisibleColumns } from "@/hooks/useVisibleColumns";
 import { ColumnChooser } from "@/components/ColumnChooser";
 import { FiltersDrawer } from "@/components/FiltersDrawer";
 import { BulkSelectToolbar } from "@/components/BulkSelectToolbar";
+import { LeadEditDialog } from "@/components/LeadEditDialog";
 import { toast } from "sonner";
 
 export function LeadsContent() {
@@ -46,6 +47,10 @@ export function LeadsContent() {
   const [appliedFilters, setAppliedFilters] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(50);
+  
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['leads', appliedFilters, currentPage, pageSize],
@@ -89,6 +94,17 @@ export function LeadsContent() {
     } catch (error) {
       toast.error('Failed to delete leads');
     }
+  };
+
+  // Edit dialog handlers
+  const handleEditLead = (lead: Lead) => {
+    setSelectedLead(lead);
+    setEditDialogOpen(true);
+  };
+
+  const handleLeadUpdated = async () => {
+    await refetch();
+    toast.success('Lead updated successfully!');
   };
 
   const renderCellContent = (lead: Lead, columnKey: string) => {
@@ -249,7 +265,11 @@ export function LeadsContent() {
                       </TableCell>
                     ))}
                     <TableCell>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditLead(lead)}
+                      >
                         Bewerken
                       </Button>
                     </TableCell>
@@ -355,6 +375,13 @@ export function LeadsContent() {
           selectedCount={selectedLeads.length}
           onDelete={handleBulkDelete}
           onClear={() => setSelectedLeads([])}
+        />
+        
+        <LeadEditDialog
+          lead={selectedLead}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onLeadUpdated={handleLeadUpdated}
         />
       </div>
     );

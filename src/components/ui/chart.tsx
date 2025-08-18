@@ -65,6 +65,7 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = "Chart"
 
+// Safe CSS-in-JS implementation for chart styling without dangerouslySetInnerHTML
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([_, config]) => config.theme || config.color
@@ -73,29 +74,56 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   if (!colorConfig.length) {
     return null
   }
-
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
-}
-`
-          )
-          .join("\n"),
-      }}
-    />
-  )
+  
+  // Generate CSS rules as an array of objects instead of a string
+  const cssRules = React.useMemo(() => {
+    return Object.entries(THEMES).flatMap(([theme, prefix]) => {
+      return colorConfig.map(([key, itemConfig]) => {
+        const color = 
+          itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+          itemConfig.color
+        
+        if (!color) return null
+        
+        // Create a unique selector for each theme+chart+key combination
+        const selector = `${prefix} [data-chart=${id}]`
+        const property = `--color-${key}`
+        const value = color
+        
+        return { selector, property, value }
+      }).filter(Boolean) // Remove null entries
+    })
+  }, [id, colorConfig])
+  
+  // Apply the CSS rules using React's style system
+  React.useEffect(() => {
+    // Create a stylesheet if it doesn't exist
+    const styleId = `chart-style-${id}`
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement
+    
+    if (!styleEl) {
+      styleEl = document.createElement('style')
+      styleEl.id = styleId
+      document.head.appendChild(styleEl)
+    }
+    
+    // Generate the CSS text
+    const cssText = cssRules
+      .map(rule => `${rule.selector} { ${rule.property}: ${rule.value}; }`)
+      .join('\n')
+    
+    styleEl.textContent = cssText
+    
+    // Cleanup on unmount
+    return () => {
+      if (styleEl && styleEl.parentNode) {
+        styleEl.parentNode.removeChild(styleEl)
+      }
+    }
+  }, [id, cssRules])
+  
+  // Return null as we're managing the style element directly in the DOM
+  return null
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip

@@ -1,6 +1,6 @@
 import { toast } from "@/components/ui/sonner";
 import { apiRequest as baseApiRequest, getAuthHeaders } from "@/api/api";
-import { LeadListResponse, TemplateListResponse } from '@/types/api';
+import { Lead, LeadListResponse, TemplateListResponse } from '@/types/api';
 
 const handleApiError = (error: any) => {
   console.error('API Error:', error);
@@ -67,6 +67,22 @@ export const sendersApi = {
 export const leadsApi = {
   getAll: (page: number = 1, size: number = 50): Promise<LeadListResponse> =>
     apiRequest<LeadListResponse>(`/leads/?page=${page}&size=${size}`),
+  getById: (id: string) =>
+    apiRequest(`/leads/${id}`),
+  create: (data: Partial<Lead>) =>
+    apiRequest('/leads/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<Lead>) =>
+    apiRequest(`/leads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiRequest(`/leads/${id}`, {
+      method: 'DELETE',
+    }),
   getLists: () => apiRequest('/leads/lists/'),
   import: (file: File, listName?: string) => {
     const formData = new FormData();

@@ -32,7 +32,7 @@ def list_campaigns():
         
         # In production, filter by owner (current user)
         # In development, don't filter by owner since RLS is disabled with service role
-        if current_app.env != "development":
+        if current_app.config.get('ENV') != "development":
             query = query.eq("owner", g.user_id)
             
         # Order by created_at and execute

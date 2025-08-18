@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { leadsApi } from "@/services/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Upload } from "lucide-react";
 
@@ -92,21 +93,14 @@ export function LeadEditDialog({ lead, open, onOpenChange, onLeadUpdated }: Lead
         imagePath = fileName;
       }
 
-      // Update lead in database
-      const { error: updateError } = await supabase
-        .from('leads')
-        .update({
-          email: formData.email,
-          bedrijf: formData.bedrijf || null,
-          website: formData.website || null,
-          linkedin: formData.linkedin || null,
-          image_path: imagePath,
-        })
-        .eq('id', lead.id);
-
-      if (updateError) {
-        throw updateError;
-      }
+      // Update lead in database using our API
+      await leadsApi.update(lead.id, {
+        email: formData.email,
+        bedrijf: formData.bedrijf || null,
+        website: formData.website || null,
+        linkedin: formData.linkedin || null,
+        image_path: imagePath,
+      });
 
       toast({
         title: "Lead saved",

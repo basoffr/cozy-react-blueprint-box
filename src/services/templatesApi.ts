@@ -1,6 +1,7 @@
 
 import { toast } from "@/components/ui/sonner";
 import { apiRequest as baseApiRequest, getAuthHeaders } from "@/api/api";
+import { TemplateListResponse } from "@/types/api";
 
 const handleApiError = (error: any) => {
   console.error('Templates API Error:', error);
@@ -44,8 +45,8 @@ export interface TemplatePreview {
 
 export const templatesApi = {
   // Optimized list query - only fetch essential fields
-  getList: (page: number = 1, limit: number = 20): Promise<TemplateListItem[]> => 
-    apiRequest<TemplateListItem[]>(`/templates/?page=${page}&limit=${limit}&fields=id,name,subject,created_at,char_length(html) as length`),
+  getList: (page: number = 1, limit: number = 20): Promise<TemplateListResponse> => 
+    apiRequest<TemplateListResponse>(`/templates/?page=${page}&size=${limit}`),
   
   // Lazy loading for full template data
   getPreview: (id: string): Promise<TemplatePreview> => 

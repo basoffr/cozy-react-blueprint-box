@@ -1,4 +1,4 @@
-const base = import.meta.env.DEV ? '/api' : 'https://api.mydomain.com';
+const base = import.meta.env.DEV ? '/api' : '/api';
 
 // Add dev API key header in development mode
 const devHeaders: HeadersInit = import.meta.env.DEV

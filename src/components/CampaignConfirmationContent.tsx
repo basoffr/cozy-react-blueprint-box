@@ -22,10 +22,13 @@ export const CampaignConfirmationContent = () => {
   const { templateId, listId, scheduleAt, reset } = useNewCampaign();
   const [isCreating, setIsCreating] = useState(false);
 
-  const { data: templates } = useQuery({
+  const { data: templatesResponse } = useQuery({
     queryKey: ['templates'],
-    queryFn: () => apiRequest('/templates') as Promise<Template[]>,
+    queryFn: () => apiRequest('/templates/') as Promise<{items: Template[]}>,
   });
+
+  // Extract templates array from paginated response
+  const templates = templatesResponse?.items || [];
 
   const { data: leadLists } = useQuery({
     queryKey: ['leads-lists'],

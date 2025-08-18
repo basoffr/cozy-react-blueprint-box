@@ -113,7 +113,7 @@ def require_user(f):
         dev_api_key = request.headers.get('X-API-Key')
         
         # Check development mode with API key
-        if current_app.env == "development" and dev_api_key:
+        if current_app.config.get("ENV") == "development" and dev_api_key:
             dev_key = os.getenv("DEV_API_KEY", "dev-secret")
             if dev_api_key == dev_key:
                 # For development, set a valid UUID as mock user ID

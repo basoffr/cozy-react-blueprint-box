@@ -16,10 +16,13 @@ export const NewCampaignContent = () => {
   const { templateId, setTemplateId } = useNewCampaign();
   const [selectedTemplate, setSelectedTemplate] = useState<string>(templateId || "");
 
-  const { data: templates, isLoading } = useQuery({
+  const { data: templatesResponse, isLoading } = useQuery({
     queryKey: ['templates-sequences'],
     queryFn: () => templatesApi.getList(1, 100), // Get all templates for selection
   });
+
+  // Extract templates array from paginated response
+  const templates = templatesResponse?.items || [];
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
