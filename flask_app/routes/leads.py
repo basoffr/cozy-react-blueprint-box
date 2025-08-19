@@ -24,7 +24,7 @@ def list_leads():
         supabase = create_supabase_client()
         
         # Get the authenticated user ID from the request context
-        user_id = g.user['id']
+        user_id = g.user_id
         
         # Calculate offset for pagination
         offset = (page - 1) * size
@@ -60,7 +60,7 @@ def create_lead():
         supabase = create_supabase_client()
         
         # Get the authenticated user ID from the request context
-        user_id = g.user['id']
+        user_id = g.user_id
         
         # Get JSON data from request
         data = request.get_json()
@@ -104,7 +104,7 @@ def get_lead(id: str):
         supabase = create_supabase_client()
         
         # Get the authenticated user ID from the request context
-        user_id = g.user['id']
+        user_id = g.user_id
         
         # Query the lead by ID and owner
         response = supabase.table("leads").select("*").eq("id", str(id)).eq("owner", user_id).execute()
@@ -128,7 +128,7 @@ def update_lead(id: str):
         supabase = create_supabase_client()
         
         # Get the authenticated user ID from the request context
-        user_id = g.user['id']
+        user_id = g.user_id
         
         # Get JSON data from request
         data = request.get_json()
@@ -176,7 +176,7 @@ def delete_lead(id: str):
         supabase = create_supabase_client()
         
         # Get the authenticated user ID from the request context
-        user_id = g.user['id']
+        user_id = g.user_id
         
         # First check if the lead exists and belongs to the user
         check_response = supabase.table("leads").select("id").eq("id", str(id)).eq("owner", user_id).execute()
