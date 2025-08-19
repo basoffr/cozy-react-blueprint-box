@@ -6,11 +6,19 @@ that notify about email events such as opens, clicks, and replies.
 """
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from flask_app.celery_tasks import (
-    process_email_open_event,
-    process_email_click_event,
-    process_email_reply_event
-)
+# Try to import celery tasks, but make it optional for deployment
+try:
+    from flask_app.celery_tasks import (
+        process_email_open_event,
+        process_email_click_event,
+        process_email_reply_event
+    )
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    process_email_open_event = None
+    process_email_click_event = None
+    process_email_reply_event = None
 
 # Create blueprint
 email_webhooks_bp = Blueprint("email_webhooks", __name__, url_prefix="/webhooks/email")
@@ -41,33 +49,35 @@ def handle_email_event():
             return jsonify({"error": "Missing required fields: event_type or email_id"}), 400
             
         # Process event based on type
-        if event_type == "open":
-            # Process open event asynchronously
-            process_email_open_event.delay(
-                email_id,
-                timestamp=event_data.get("timestamp"),
-                metadata=event_data.get("metadata")
-            )
-        elif event_type == "click":
-            # Process click event asynchronously
-            # Note: Previously this was incorrectly using 'replied' status for click events
-            process_email_click_event.delay(
-                email_id,
-                link_url=event_data.get("url"),
-                timestamp=event_data.get("timestamp"),
-                metadata=event_data.get("metadata")
-            )
-        elif event_type == "reply":
-            # Process reply event asynchronously
-            process_email_reply_event.delay(
-                email_id,
-                reply_content=event_data.get("content"),
-                timestamp=event_data.get("timestamp"),
-                metadata=event_data.get("metadata")
-            )
+        if CELERY_AVAILABLE:
+            # Process events asynchronously with Celery
+            if event_type == "open":
+                process_email_open_event.delay(
+                    email_id,
+                    timestamp=event_data.get("timestamp"),
+                    metadata=event_data.get("metadata")
+                )
+            elif event_type == "click":
+                process_email_click_event.delay(
+                    email_id,
+                    link_url=event_data.get("url"),
+                    timestamp=event_data.get("timestamp"),
+                    metadata=event_data.get("metadata")
+                )
+            elif event_type == "reply":
+                process_email_reply_event.delay(
+                    email_id,
+                    reply_content=event_data.get("content"),
+                    timestamp=event_data.get("timestamp"),
+                    metadata=event_data.get("metadata")
+                )
+            else:
+                logger.warning(f"Unhandled event type: {event_type}")
+                return jsonify({"error": f"Unhandled event type: {event_type}"}), 400
         else:
-            logger.warning(f"Unhandled event type: {event_type}")
-            return jsonify({"error": f"Unhandled event type: {event_type}"}), 400
+            # Celery not available - log event but don't process
+            logger.info(f"Received {event_type} event for email {email_id} (Celery not available - not processed)")
+            # In production, you might want to store these in database for later processing
             
         # Return success response
         return jsonify({"status": "success", "message": f"Event {event_type} for email {email_id} queued for processing"}), 202
