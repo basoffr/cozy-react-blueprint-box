@@ -20,15 +20,21 @@ app.config.from_mapping(
     DEBUG=os.environ.get("FLASK_DEBUG", "0") == "1",
 )
 # Configure CORS for production deployment
-CORS(app, 
-     origins=[
-         "http://localhost:5173",  # Development
-         "https://cozy-react-blueprint-box.vercel.app",  # Production Vercel
-         "https://cozy-react-blueprint-box-*.vercel.app"  # Preview deployments
-     ],
-     supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-API-Key'],
-     methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+# More permissive for debugging - can be restricted later
+if os.environ.get('FLASK_ENV') == 'development':
+    # Development: allow all origins
+    CORS(app, supports_credentials=True)
+else:
+    # Production: restrict origins
+    CORS(app, 
+         origins=[
+             "http://localhost:5173",  # Development
+             "https://cozy-react-blueprint-box.vercel.app",  # Production Vercel
+             "https://cozy-react-blueprint-box-git-main-basoffrs-projects.vercel.app",  # Git deployments
+         ],
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization', 'X-API-Key'],
+         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 
 # Register blueprints
 app.register_blueprint(leads_bp)
@@ -39,6 +45,26 @@ app.register_blueprint(email_servers_bp)
 app.register_blueprint(email_webhooks_bp)
 app.register_blueprint(stats_bp)
 app.register_blueprint(templates_bp)
+
+# Health check and debug endpoints
+@app.route('/health')
+def health_check():
+    """Simple health check endpoint - no auth required"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'cozy-react-blueprint-box-api',
+        'environment': os.environ.get('FLASK_ENV', 'production')
+    })
+
+@app.route('/api/health')
+def api_health_check():
+    """API health check endpoint - no auth required"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'cozy-react-blueprint-box-api',
+        'supabase_configured': bool(os.environ.get('SUPABASE_URL')),
+        'environment': os.environ.get('FLASK_ENV', 'production')
+    })
 
 # Error handler example (optional)
 @app.route('/api/routes')

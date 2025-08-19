@@ -27,6 +27,7 @@ export async function apiRequest<T>(
     headers: {
       'Content-Type': 'application/json',
       ...devHeaders,
+      ...getAuthHeaders(),  // Add authentication headers
       ...(opts.headers || {}),
     },
   });
