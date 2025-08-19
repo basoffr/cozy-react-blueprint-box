@@ -1,4 +1,7 @@
-const base = import.meta.env.DEV ? '/api' : '/api';
+// Configure API base URL for development vs production
+const base = import.meta.env.DEV 
+  ? '/api'  // Development: use Vite proxy
+  : import.meta.env.VITE_API_URL || 'https://cold-outreach-tool.onrender.com';  // Production: direct to Render
 
 // Add dev API key header in development mode
 const devHeaders: HeadersInit = import.meta.env.DEV
