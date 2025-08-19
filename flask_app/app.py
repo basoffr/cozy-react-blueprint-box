@@ -19,7 +19,16 @@ app.config.from_mapping(
     ENV=os.environ.get("FLASK_ENV", "production"),
     DEBUG=os.environ.get("FLASK_DEBUG", "0") == "1",
 )
-CORS(app)  # Enable CORS if needed
+# Configure CORS for production deployment
+CORS(app, 
+     origins=[
+         "http://localhost:5173",  # Development
+         "https://cozy-react-blueprint-box.vercel.app",  # Production Vercel
+         "https://cozy-react-blueprint-box-*.vercel.app"  # Preview deployments
+     ],
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization', 'X-API-Key'],
+     methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 
 # Register blueprints
 app.register_blueprint(leads_bp)
