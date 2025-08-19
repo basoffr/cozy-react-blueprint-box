@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: cozy-react-blueprint-box-api
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -c gunicorn.conf.py flask_app.app:app"
+    plan: free
+    environmentVariables:
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: WEB_CONCURRENCY
+        value: 4
+    # Add your environment variables in Render dashboard:
+    # SUPABASE_URL
+    # SUPABASE_SERVICE_ROLE_KEY
+    # DEV_API_KEY (optional for prod)
+    # SECRET_KEY

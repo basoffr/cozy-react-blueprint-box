@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => ({
     // This prevents "script-src" CSP violations in the browser
     hmr: false,
     proxy: {
-      '^/api': {
+      '/api': {
         target: 'http://127.0.0.1:5001',
         changeOrigin: true,
         secure: false,
@@ -129,15 +129,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-    },
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-        secure: false,
-      },
     },
   },
   test: {
