@@ -19,8 +19,14 @@ export function AddStepButton({ position }: AddStepButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleAddStep = (stepType: 'email' | 'wait') => {
-    console.log('Adding step:', stepType, 'at position:', position);
-    addStep(stepType, position);
+    console.log('AddStepButton: Adding step:', stepType, 'at position:', position);
+    console.log('AddStepButton: addStep function exists:', typeof addStep);
+    try {
+      addStep(stepType, position);
+      console.log('AddStepButton: addStep called successfully');
+    } catch (error) {
+      console.error('AddStepButton: Error calling addStep:', error);
+    }
     setIsOpen(false);
   };
 

@@ -44,6 +44,10 @@ def create_app():
         if request.path in ['/health', '/test', '/stats/overview/', '/campaigns/']:
             return None
             
+        # Skip auth for database fix endpoints
+        if request.path.startswith('/database-fix/'):
+            return None
+            
         # Let blueprint routes handle their own authentication
         # This prevents conflicts with @require_user decorator
         return None
@@ -148,8 +152,16 @@ def create_app():
             "status": 404
         }), 404
     
-    # Temporarily disable blueprints to test simple endpoints
     # Register blueprints
+    # Import and register templates blueprint
+    from .routes.templates import templates_bp
+    app.register_blueprint(templates_bp)
+    
+    # Import and register database fix blueprint
+    from .routes.database_fix import database_fix_bp
+    app.register_blueprint(database_fix_bp)
+    
+    # Temporarily disable other blueprints
     # app.register_blueprint(campaigns_bp)
     # from .routes.email_webhooks import email_webhooks_bp
     # app.register_blueprint(email_webhooks_bp)

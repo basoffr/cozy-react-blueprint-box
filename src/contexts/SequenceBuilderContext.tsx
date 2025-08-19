@@ -83,10 +83,16 @@ function sequenceBuilderReducer(state: SequenceBuilderState, action: SequenceBui
     }
     
     case 'ADD_STEP': {
+      console.log('ADD_STEP action:', action.payload);
+      
+      // Calculate the insertion position
+      const insertPosition = action.payload.afterPosition + 1;
+      
+      // Create new step
       const newStep: SequenceStep = {
         id: `step-${Date.now()}`,
         type: action.payload.stepType,
-        position: action.payload.afterPosition + 1,
+        position: insertPosition,
         ...(action.payload.stepType === 'email' && {
           subject: '',
           body: '',
@@ -101,15 +107,23 @@ function sequenceBuilderReducer(state: SequenceBuilderState, action: SequenceBui
         })
       };
       
-      const updatedSteps = [...state.steps];
-      // Update positions of steps after insertion point
-      updatedSteps.forEach(step => {
-        if (step.position > action.payload.afterPosition) {
-          step.position += 1;
+      console.log('Creating new step:', newStep);
+      
+      // Copy existing steps and update their positions
+      const updatedSteps = state.steps.map(step => {
+        if (step.position >= insertPosition) {
+          return { ...step, position: step.position + 1 };
         }
+        return step;
       });
+      
+      // Add the new step
       updatedSteps.push(newStep);
+      
+      // Sort by position
       updatedSteps.sort((a, b) => a.position - b.position);
+      
+      console.log('Updated steps:', updatedSteps);
       
       return { 
         ...state, 
