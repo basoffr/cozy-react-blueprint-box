@@ -1,6 +1,6 @@
 # Changelog
 
-## 2025-05-27: Nieuwe Template Aanmaken Functionaliteit
+## 2025-05-27: Nieuwe Template Aanmaken Functionaliteits
 
 ### Context
 De "Nieuwe template aanmaken" knop op de Templates pagina leidde nergens naartoe. De functionaliteit is toegevoegd om gebruikers naar de Sequence Editor te leiden voor het aanmaken van een nieuwe template.
