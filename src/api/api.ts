@@ -21,13 +21,14 @@ export async function apiRequest<T>(
   path: string,
   opts: RequestInit = {}
 ): Promise<T> {
+  const authHeaders = await getAuthHeaders();  // Await the async function
   const res = await fetch(`${base}${path}`, {
     credentials: 'include',        // keep for prod
     ...opts,
     headers: {
       'Content-Type': 'application/json',
       ...devHeaders,
-      ...getAuthHeaders(),  // Add authentication headers
+      ...authHeaders,  // Use the awaited auth headers
       ...(opts.headers || {}),
     },
   });
@@ -39,7 +40,19 @@ export async function apiRequest<T>(
   return res.json();
 }
 
-export const getAuthHeaders = () => {
+export const getAuthHeaders = async () => {
+  // Try to get Supabase session first
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` };
+    }
+  } catch (error) {
+    console.warn('Failed to get Supabase session:', error);
+  }
+  
+  // Fallback to localStorage for backward compatibility
   const token = localStorage.getItem('access_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
