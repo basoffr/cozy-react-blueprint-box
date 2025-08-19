@@ -27,3 +27,20 @@ def get_overview():
     }
     
     return jsonify(stats)
+
+@stats_bp.route('/debug/', methods=['GET'])
+def get_debug_stats():
+    """
+    Debug endpoint - NO AUTH REQUIRED
+    Use this to test API connectivity
+    """
+    stats = {
+        'status': 'connected',
+        'message': 'API is working - authentication bypassed for debugging',
+        'leads': 150,
+        'campaigns': 5,
+        'open_rate': 0.25,
+        'reply_rate': 0.12
+    }
+    
+    return jsonify(stats)
